@@ -1,0 +1,204 @@
+You are a senior full-stack software engineer. Build a production-ready MVP for an AI-driven career guidance web application for pre-university students in Zimbabwe.
+
+## Project Overview
+
+The system provides personalized career and academic recommendations using:
+
+1. Student input (interests, strengths, subjects)
+2. Real job market data (Adzuna API)
+3. Preloaded datasets (mock/Kaggle-style data)
+
+The goal is to combine AI-style recommendations with real labour market insights.
+
+---
+
+## Tech Stack
+
+* Frontend: React (TypeScript, Vite)
+* Backend: Node.js with Express (TypeScript preferred)
+* Database: SQLite or PostgreSQL
+* Charts: Recharts
+* HTTP client: Axios
+
+---
+
+## Core Features
+
+### 1. User Input (Career Profiling)
+
+Create a form that collects:
+
+* Interests (e.g. IT, Business, Science)
+* Strengths (e.g. Maths, Communication, Creativity)
+* Preferred subjects
+* Optional: personality type (simple selection)
+
+---
+
+### 2. Career Recommendation Engine (Backend Logic)
+
+Implement a rule-based AI system that:
+
+* Maps user input to careers
+* Uses a predefined dataset of careers
+
+Example careers:
+
+* Software Developer
+* Data Analyst
+* Accountant
+* Civil Engineer
+* Teacher
+
+Each career must include:
+
+* Required skills
+* Recommended A-Level subjects
+* Description
+
+Return top 3–5 recommended careers.
+
+---
+
+### 3. Job Market Integration (Adzuna API)
+
+Integrate the Adzuna API:
+
+* Create backend endpoint: /api/jobs?query=career
+* Fetch real job listings
+* Extract:
+
+  * Job title
+  * Company
+  * Location
+  * Salary (if available)
+
+Create another endpoint:
+
+* /api/insights?career=Software Developer
+
+This should:
+
+* Count number of jobs returned
+* Determine demand level:
+
+  * High (many listings)
+  * Medium
+  * Low
+
+---
+
+### 4. Career Insights Engine
+
+For each recommended career:
+
+* Show demand level (based on API data)
+* Extract top skills from job titles/descriptions (simple keyword matching)
+* Return structured insights
+
+Example:
+{
+"career": "Software Developer",
+"demand": "High",
+"topSkills": ["JavaScript", "Python", "Problem Solving"]
+}
+
+---
+
+### 5. Frontend UI
+
+Create pages:
+
+#### A. Career Form Page
+
+* Clean modern UI
+* Submit button
+
+#### B. Results Page
+
+Display:
+
+* Recommended careers (cards)
+* For each career:
+
+  * Description
+  * Required skills
+  * A-Level subjects
+  * Demand level (badge: High/Medium/Low)
+  * Top skills in market
+
+#### C. Charts Dashboard
+
+Using Recharts:
+
+* Bar chart: Most in-demand careers
+* Pie chart: Career categories
+
+---
+
+### 6. Database
+
+Create tables:
+
+Users (optional)
+Careers
+JobInsights (cached API results)
+
+---
+
+### 7. API Structure
+
+Implement:
+
+GET /api/careers
+POST /api/recommend
+GET /api/jobs
+GET /api/insights
+
+---
+
+### 8. Mock Data (IMPORTANT)
+
+If Adzuna API key is missing:
+
+* Use fallback mock job data
+* Ensure system still works
+
+---
+
+### 9. Code Quality
+
+* Use clean architecture
+* Separate routes, controllers, services
+* Use environment variables for API keys
+* Handle errors properly
+
+---
+
+### 10. Bonus (if possible)
+
+* Add loading states
+* Add basic authentication (optional)
+* Add caching for API responses
+
+---
+
+## Expected Outcome
+
+A working web app where:
+
+1. User enters interests
+2. System recommends careers
+3. System shows real-world demand insights
+4. System visualizes job market trends
+
+---
+
+## Important Notes
+
+* Focus on functionality over perfection
+* Keep design simple but clean
+* Ensure app runs locally with clear setup instructions
+* Include README with setup steps
+
+Build step by step and ensure each feature works before moving to the next.
