@@ -1,22 +1,28 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: AI Career Guidance API for pre-university students in Zimbabwe
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: careers
+    description: Career data and recommendations
+  - name: chat
+    description: AI chatbot powered by Gemini
+  - name: jobs
+    description: Job market data
+  - name: feedback
+    description: User feedback
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +30,172 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /careers:
+    get:
+      operationId: getCareers
+      tags: [careers]
+      summary: Get all available careers
+      responses:
+        "200":
+          description: List of careers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Career"
+
+  /recommend:
+    post:
+      operationId: getRecommendations
+      tags: [careers]
+      summary: Get personalized career recommendations based on student profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StudentProfile"
+      responses:
+        "200":
+          description: Career recommendations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CareerRecommendation"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /careers/{careerId}:
+    get:
+      operationId: getCareerById
+      tags: [careers]
+      summary: Get detailed information about a specific career
+      parameters:
+        - name: careerId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Career details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Career"
+        "404":
+          description: Career not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /insights:
+    get:
+      operationId: getCareerInsights
+      tags: [jobs]
+      summary: Get job market insights for a career
+      parameters:
+        - name: career
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Career name to get insights for
+      responses:
+        "200":
+          description: Job market insights
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CareerInsights"
+
+  /jobs:
+    get:
+      operationId: getJobs
+      tags: [jobs]
+      summary: Get job listings for a career
+      parameters:
+        - name: query
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Career or job title to search for
+      responses:
+        "200":
+          description: Job listings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/JobListing"
+
+  /chat:
+    post:
+      operationId: sendChatMessage
+      tags: [chat]
+      summary: Send a message to the Gemini AI career advisor chatbot
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChatRequest"
+      responses:
+        "200":
+          description: AI response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatResponse"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: AI service error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /feedback:
+    post:
+      operationId: submitFeedback
+      tags: [feedback]
+      summary: Submit feedback about career recommendations
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FeedbackRequest"
+      responses:
+        "201":
+          description: Feedback submitted successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FeedbackResponse"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +206,211 @@ components:
       required:
         - status
 
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+
+    Career:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+        requiredSkills:
+          type: array
+          items:
+            type: string
+        aLevelSubjects:
+          type: array
+          items:
+            type: string
+        universityPrograms:
+          type: array
+          items:
+            type: string
+        averageSalary:
+          type: string
+        jobOutlook:
+          type: string
+      required:
+        - id
+        - name
+        - description
+        - category
+        - requiredSkills
+        - aLevelSubjects
+        - universityPrograms
+        - averageSalary
+        - jobOutlook
+
+    StudentProfile:
+      type: object
+      properties:
+        interests:
+          type: array
+          items:
+            type: string
+          description: Areas of interest (e.g. IT, Business, Science)
+        strengths:
+          type: array
+          items:
+            type: string
+          description: Student strengths (e.g. Maths, Communication, Creativity)
+        subjects:
+          type: array
+          items:
+            type: string
+          description: A-Level subjects taken or preferred
+        personalityType:
+          type: ["string", "null"]
+          description: Holland personality type (Realistic, Investigative, Artistic, Social, Enterprising, Conventional)
+        hobbies:
+          type: array
+          items:
+            type: string
+      required:
+        - interests
+        - strengths
+        - subjects
+
+    CareerRecommendation:
+      type: object
+      properties:
+        career:
+          $ref: "#/components/schemas/Career"
+        matchPercentage:
+          type: integer
+          description: How well the career matches the student profile (0-100)
+        matchReasons:
+          type: array
+          items:
+            type: string
+          description: Reasons why this career is a good match
+        demandLevel:
+          type: string
+          enum: [High, Medium, Low]
+      required:
+        - career
+        - matchPercentage
+        - matchReasons
+        - demandLevel
+
+    CareerInsights:
+      type: object
+      properties:
+        career:
+          type: string
+        demandLevel:
+          type: string
+          enum: [High, Medium, Low]
+        jobCount:
+          type: integer
+        topSkills:
+          type: array
+          items:
+            type: string
+        averageSalary:
+          type: ["string", "null"]
+      required:
+        - career
+        - demandLevel
+        - jobCount
+        - topSkills
+
+    JobListing:
+      type: object
+      properties:
+        title:
+          type: string
+        company:
+          type: string
+        location:
+          type: string
+        salary:
+          type: ["string", "null"]
+        description:
+          type: ["string", "null"]
+      required:
+        - title
+        - company
+        - location
+
+    ChatMessage:
+      type: object
+      properties:
+        role:
+          type: string
+          enum: [user, assistant]
+        content:
+          type: string
+      required:
+        - role
+        - content
+
+    ChatRequest:
+      type: object
+      properties:
+        message:
+          type: string
+          description: The user's message to the career advisor
+        history:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChatMessage"
+          description: Conversation history for context
+        studentProfile:
+          $ref: "#/components/schemas/StudentProfile"
+      required:
+        - message
+
+    ChatResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          description: The AI advisor's response
+        suggestions:
+          type: array
+          items:
+            type: string
+          description: Quick reply suggestions
+      required:
+        - message
+        - suggestions
+
+    FeedbackRequest:
+      type: object
+      properties:
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+        comment:
+          type: ["string", "null"]
+        careerName:
+          type: ["string", "null"]
+        helpful:
+          type: boolean
+      required:
+        - rating
+        - helpful
+
+    FeedbackResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        message:
+          type: string
+      required:
+        - id
+        - message

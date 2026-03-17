@@ -1,0 +1,24 @@
+packages:
+  "framer-motion": "For smooth page transitions and beautiful entry animations"
+  "recharts": "For the data visualization dashboard showing career insights"
+  "zustand": "For elegant global state management of the student profile"
+  "react-hook-form": "For robust form handling in the assessment and feedback pages"
+  "@hookform/resolvers": "For Zod validation integration with react-hook-form"
+  "clsx": "Utility for constructing className strings conditionally"
+  "tailwind-merge": "Utility for merging tailwind classes safely"
+
+images:
+  - path: "artifacts/career-guidance/public/images/hero-bg.png"
+    description: "A beautiful, bright, hopeful illustration of diverse African pre-university students walking towards a modern glowing university campus. Clean, professional tech startup style with deep blue and gold accents, high quality."
+    aspect_ratio: "16:9"
+  - path: "artifacts/career-guidance/public/images/abstract-success.png"
+    description: "An abstract 3D geometric composition featuring glowing data nodes, ascending graphs, and connected networks in deep oxford blue and vibrant gold/teal. Conveys intelligence, career growth, and data-driven insights."
+    aspect_ratio: "16:9"
+  - path: "artifacts/career-guidance/public/images/chatbot-avatar.png"
+    description: "A friendly, polished 3D icon of a cute AI robot advisor wearing a graduation cap, smiling and welcoming. Clean background, professional branding style."
+    aspect_ratio: "1:1"
+
+notes:
+  - Assuming @workspace/api-client-react is properly linked in the monorepo
+  - Using Zustand for sharing the StudentProfile across the assessment, recommendations, and chat pages
+  - Using framer-motion for premium interactive feel
