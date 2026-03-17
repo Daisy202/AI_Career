@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { motion } from "framer-motion";
-import { Briefcase, ArrowRight, BrainCircuit, AlertCircle, RefreshCw } from "lucide-react";
+import { Briefcase, ArrowRight, BrainCircuit, AlertCircle, RefreshCw, GraduationCap } from "lucide-react";
 import { Button, Card, Badge, Progress, Skeleton } from "@/components/ui-elements";
 import { useCareerStore } from "@/store/use-career-store";
 import { useGetRecommendations } from "@workspace/api-client-react";
@@ -144,6 +144,36 @@ export default function RecommendationsPage() {
                         </Badge>
                         <span className="text-sm font-semibold text-muted-foreground">{rec.career.averageSalary} avg</span>
                       </div>
+                    </div>
+
+                    <div className="mt-6 border-t border-border pt-4">
+                      <h4 className="text-sm font-bold mb-3 flex items-center"><GraduationCap className="w-4 h-4 mr-2 text-primary" /> University Programs You May Qualify For:</h4>
+                      {rec.matchedPrograms && rec.matchedPrograms.length > 0 ? (
+                        <div className="space-y-3">
+                          {rec.matchedPrograms.slice(0, 3).map((match, i) => (
+                            <div key={i} className="bg-muted/30 p-3 rounded-lg border border-border text-sm">
+                              <div className="font-semibold text-foreground">{match.program.programName}</div>
+                              <div className="text-xs text-muted-foreground flex justify-between items-center mt-1">
+                                <span>{match.program.schoolName}</span>
+                                {match.qualifies && match.meetsPointsRequirement !== false ? (
+                                  <Badge variant="success" className="text-[10px] px-1.5 py-0">Qualifies</Badge>
+                                ) : match.meetsPointsRequirement === false ? (
+                                  <Badge variant="destructive" className="text-[10px] px-1.5 py-0">Points Too Low</Badge>
+                                ) : (
+                                  <Badge variant="warning" className="text-[10px] px-1.5 py-0">Missing Subjects: {match.missingSubjects.join(', ')}</Badge>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                          {rec.matchedPrograms.length > 3 && (
+                            <div className="text-xs text-center text-muted-foreground">+{rec.matchedPrograms.length - 3} more programs available</div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="text-sm text-muted-foreground bg-muted/30 p-3 rounded-lg border border-dashed text-center">
+                          No program data yet - admin can add programs
+                        </div>
+                      )}
                     </div>
                   </div>
 

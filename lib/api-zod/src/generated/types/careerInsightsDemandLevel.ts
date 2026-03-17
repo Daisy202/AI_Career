@@ -3,7 +3,7 @@
  * Do not edit manually.
  * Api
  * AI Career Guidance API for pre-university students in Zimbabwe
- * OpenAPI spec version: 0.1.0
+ * OpenAPI spec version: 0.2.0
  */
 
 export type CareerInsightsDemandLevel =

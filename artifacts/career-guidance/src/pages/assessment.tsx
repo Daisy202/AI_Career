@@ -5,7 +5,7 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { ArrowLeft, ArrowRight, CheckCircle2, Sparkles } from "lucide-react";
-import { Button, Card, Progress, Checkbox, Label, Textarea } from "@/components/ui-elements";
+import { Button, Card, Progress, Checkbox, Label, Textarea, Input } from "@/components/ui-elements";
 import { useCareerStore } from "@/store/use-career-store";
 
 const subjectsList = [
@@ -39,7 +39,8 @@ const formSchema = z.object({
   strengths: z.array(z.string()).min(1, "Select at least one strength"),
   subjects: z.array(z.string()).min(1, "Select at least one A-Level subject"),
   personalityType: z.string().min(1, "Select a personality type"),
-  hobbies: z.string().optional()
+  hobbies: z.string().optional(),
+  cutOffPoints: z.coerce.number().min(0).max(20).optional().nullable()
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -48,7 +49,7 @@ export default function AssessmentPage() {
   const [, setLocation] = useLocation();
   const setProfile = useCareerStore((s) => s.setProfile);
   const [step, setStep] = useState(1);
-  const totalSteps = 5;
+  const totalSteps = 6;
 
   const { control, handleSubmit, watch, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -57,7 +58,8 @@ export default function AssessmentPage() {
       strengths: [],
       subjects: [],
       personalityType: "",
-      hobbies: ""
+      hobbies: "",
+      cutOffPoints: null
     }
   });
 
@@ -70,7 +72,8 @@ export default function AssessmentPage() {
       strengths: data.strengths,
       subjects: data.subjects,
       personalityType: data.personalityType,
-      hobbies: hobbiesArray
+      hobbies: hobbiesArray,
+      cutOffPoints: data.cutOffPoints
     });
     
     setLocation("/recommendations");
@@ -249,6 +252,35 @@ export default function AssessmentPage() {
                         />
                       )}
                     />
+                  </div>
+                )}
+
+                {step === 6 && (
+                  <div className="space-y-6">
+                    <div>
+                      <h2 className="text-2xl font-bold mb-2">Academic Performance (Optional)</h2>
+                      <p className="text-muted-foreground">Enter your ZIMSEC cut-off points to find matched university programs.</p>
+                    </div>
+                    <div className="max-w-xs mx-auto text-center space-y-4 pt-4">
+                      <Label className="text-lg">A-Level Points (0-20)</Label>
+                      <Controller
+                        name="cutOffPoints"
+                        control={control}
+                        render={({ field }) => (
+                          <Input 
+                            type="number"
+                            min={0}
+                            max={20}
+                            {...field}
+                            value={field.value ?? ""}
+                            onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : null)}
+                            className="text-center text-3xl h-16"
+                          />
+                        )}
+                      />
+                      {errors.cutOffPoints && <p className="text-destructive font-semibold text-sm">{errors.cutOffPoints.message}</p>}
+                    </div>
+
                     <div className="bg-secondary/10 border border-secondary/20 rounded-xl p-6 mt-8 flex items-start gap-4">
                       <CheckCircle2 className="w-8 h-8 text-secondary shrink-0 mt-1" />
                       <div>

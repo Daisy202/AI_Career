@@ -3,15 +3,13 @@
  * Do not edit manually.
  * Api
  * AI Career Guidance API for pre-university students in Zimbabwe
- * OpenAPI spec version: 0.1.0
+ * OpenAPI spec version: 0.2.0
  */
 import type { ChatMessage } from "./chatMessage";
 import type { StudentProfile } from "./studentProfile";
 
 export interface ChatRequest {
-  /** The user's message to the career advisor */
   message: string;
-  /** Conversation history for context */
   history?: ChatMessage[];
   studentProfile?: StudentProfile;
 }

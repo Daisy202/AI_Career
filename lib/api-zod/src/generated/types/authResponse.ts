@@ -5,7 +5,9 @@
  * AI Career Guidance API for pre-university students in Zimbabwe
  * OpenAPI spec version: 0.2.0
  */
+import type { UserInfo } from "./userInfo";
 
-export interface ErrorResponse {
-  error: string;
+export interface AuthResponse {
+  user: UserInfo;
+  message: string;
 }

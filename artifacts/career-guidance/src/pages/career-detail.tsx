@@ -1,5 +1,5 @@
 import { useRoute } from "wouter";
-import { Building2, BookOpen, Brain, TrendingUp, CheckCircle, ArrowLeft, MapPin, Search } from "lucide-react";
+import { Building2, BookOpen, Brain, TrendingUp, CheckCircle, ArrowLeft, MapPin, Search, ExternalLink } from "lucide-react";
 import { Link } from "wouter";
 import { Button, Card, Badge, Skeleton } from "@/components/ui-elements";
 import { useGetCareerById, useGetCareerInsights, useGetJobs } from "@workspace/api-client-react";
@@ -8,18 +8,14 @@ export default function CareerDetailPage() {
   const [, params] = useRoute("/career/:id");
   const careerId = params?.id ? parseInt(params.id, 10) : 0;
 
-  const { data: career, isLoading: isCareerLoading } = useGetCareerById(careerId, {
-    query: { enabled: careerId > 0 }
-  });
+  const { data: career, isLoading: isCareerLoading } = useGetCareerById(careerId);
 
   const { data: insights, isLoading: isInsightsLoading } = useGetCareerInsights(
-    { career: career?.name || "" },
-    { query: { enabled: !!career?.name } }
+    { career: career?.name || "" }
   );
 
   const { data: jobs, isLoading: isJobsLoading } = useGetJobs(
-    { query: career?.name || "" },
-    { query: { enabled: !!career?.name } }
+    { query: career?.name || "" }
   );
 
   if (isCareerLoading) {
@@ -157,13 +153,22 @@ export default function CareerDetailPage() {
               ) : jobs && jobs.length > 0 ? (
                 <div className="space-y-4">
                   {jobs.slice(0,3).map((job, i) => (
-                    <a key={i} href="#" className="block p-4 rounded-xl border border-border bg-card hover:border-primary/50 hover:shadow-md transition-all">
-                      <h4 className="font-bold text-base mb-1 truncate">{job.title}</h4>
-                      <p className="text-sm text-primary font-semibold mb-2">{job.company}</p>
-                      <div className="flex items-center text-xs text-muted-foreground">
-                        <MapPin className="w-3 h-3 mr-1" /> {job.location}
+                    <div key={i} className="block p-4 rounded-xl border border-border bg-card hover:border-primary/50 hover:shadow-md transition-all group">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h4 className="font-bold text-base mb-1 truncate">{job.title}</h4>
+                          <p className="text-sm text-primary font-semibold mb-2">{job.company}</p>
+                          <div className="flex items-center text-xs text-muted-foreground">
+                            <MapPin className="w-3 h-3 mr-1" /> {job.location}
+                          </div>
+                        </div>
+                        {job.url && (
+                          <Button size="sm" variant="outline" className="opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => window.open(job.url, '_blank')}>
+                            <ExternalLink className="w-3 h-3 mr-1" /> View
+                          </Button>
+                        )}
                       </div>
-                    </a>
+                    </div>
                   ))}
                   <Button variant="outline" className="w-full">View All Jobs</Button>
                 </div>

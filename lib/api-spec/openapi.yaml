@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Api
-  version: 0.1.0
+  version: 0.2.0
   description: AI Career Guidance API for pre-university students in Zimbabwe
 servers:
   - url: /api
@@ -9,8 +9,12 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: Authentication
   - name: careers
     description: Career data and recommendations
+  - name: programs
+    description: University programs and entry requirements
   - name: chat
     description: AI chatbot powered by Gemini
   - name: jobs
@@ -30,6 +34,88 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /auth/register:
+    post:
+      operationId: registerUser
+      tags: [auth]
+      summary: Register a new student account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "201":
+          description: Registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          description: Invalid input or email taken
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/login:
+    post:
+      operationId: loginUser
+      tags: [auth]
+      summary: Login with email and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/logout:
+    post:
+      operationId: logoutUser
+      tags: [auth]
+      summary: Logout current user
+      responses:
+        "200":
+          description: Logged out successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /auth/me:
+    get:
+      operationId: getCurrentUser
+      tags: [auth]
+      summary: Get current logged-in user
+      responses:
+        "200":
+          description: Current user info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserInfo"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /careers:
     get:
@@ -59,7 +145,7 @@ paths:
               $ref: "#/components/schemas/StudentProfile"
       responses:
         "200":
-          description: Career recommendations
+          description: Career recommendations with matched programs
           content:
             application/json:
               schema:
@@ -98,6 +184,169 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /programs:
+    get:
+      operationId: getPrograms
+      tags: [programs]
+      summary: Get all university programs
+      parameters:
+        - name: school
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of university programs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/UniversityProgram"
+
+    post:
+      operationId: createProgram
+      tags: [programs]
+      summary: Create a new university program (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProgramRequest"
+      responses:
+        "201":
+          description: Program created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UniversityProgram"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Admin access required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /programs/match:
+    post:
+      operationId: matchPrograms
+      tags: [programs]
+      summary: Find university programs matching student subjects and optional cut-off points
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProgramMatchRequest"
+      responses:
+        "200":
+          description: Matched programs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ProgramMatch"
+
+  /programs/upload:
+    post:
+      operationId: uploadPrograms
+      tags: [programs]
+      summary: Upload programs via JSON or CSV (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UploadProgramsRequest"
+      responses:
+        "200":
+          description: Programs imported
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadProgramsResponse"
+        "400":
+          description: Invalid data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Admin access required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /programs/{programId}:
+    patch:
+      operationId: updateProgram
+      tags: [programs]
+      summary: Update a university program (admin only)
+      parameters:
+        - name: programId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProgramRequest"
+      responses:
+        "200":
+          description: Program updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UniversityProgram"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    delete:
+      operationId: deleteProgram
+      tags: [programs]
+      summary: Delete a university program (admin only)
+      parameters:
+        - name: programId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /insights:
     get:
       operationId: getCareerInsights
@@ -109,7 +358,6 @@ paths:
           required: true
           schema:
             type: string
-          description: Career name to get insights for
       responses:
         "200":
           description: Job market insights
@@ -129,7 +377,6 @@ paths:
           required: true
           schema:
             type: string
-          description: Career or job title to search for
       responses:
         "200":
           description: Job listings
@@ -158,12 +405,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ChatResponse"
-        "400":
-          description: Invalid input
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
         "500":
           description: AI service error
           content:
@@ -189,12 +430,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/FeedbackResponse"
-        "400":
-          description: Invalid input
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
 
 components:
   schemas:
@@ -203,16 +438,72 @@ components:
       properties:
         status:
           type: string
-      required:
-        - status
+      required: [status]
 
     ErrorResponse:
       type: object
       properties:
         error:
           type: string
-      required:
-        - error
+      required: [error]
+
+    MessageResponse:
+      type: object
+      properties:
+        message:
+          type: string
+      required: [message]
+
+    RegisterRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+        password:
+          type: string
+        school:
+          type: ["string", "null"]
+        level:
+          type: ["string", "null"]
+      required: [name, email, password]
+
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+      required: [email, password]
+
+    AuthResponse:
+      type: object
+      properties:
+        user:
+          $ref: "#/components/schemas/UserInfo"
+        message:
+          type: string
+      required: [user, message]
+
+    UserInfo:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+          enum: [admin, student]
+        school:
+          type: ["string", "null"]
+        level:
+          type: ["string", "null"]
+      required: [id, name, email, role]
 
     Career:
       type: object
@@ -241,16 +532,7 @@ components:
           type: string
         jobOutlook:
           type: string
-      required:
-        - id
-        - name
-        - description
-        - category
-        - requiredSkills
-        - aLevelSubjects
-        - universityPrograms
-        - averageSalary
-        - jobOutlook
+      required: [id, name, description, category, requiredSkills, aLevelSubjects, universityPrograms, averageSalary, jobOutlook]
 
     StudentProfile:
       type: object
@@ -259,28 +541,24 @@ components:
           type: array
           items:
             type: string
-          description: Areas of interest (e.g. IT, Business, Science)
         strengths:
           type: array
           items:
             type: string
-          description: Student strengths (e.g. Maths, Communication, Creativity)
         subjects:
           type: array
           items:
             type: string
-          description: A-Level subjects taken or preferred
         personalityType:
           type: ["string", "null"]
-          description: Holland personality type (Realistic, Investigative, Artistic, Social, Enterprising, Conventional)
         hobbies:
           type: array
           items:
             type: string
-      required:
-        - interests
-        - strengths
-        - subjects
+        cutOffPoints:
+          type: ["integer", "null"]
+          description: Student's ZIMSEC cut-off points (optional)
+      required: [interests, strengths, subjects]
 
     CareerRecommendation:
       type: object
@@ -289,20 +567,126 @@ components:
           $ref: "#/components/schemas/Career"
         matchPercentage:
           type: integer
-          description: How well the career matches the student profile (0-100)
         matchReasons:
           type: array
           items:
             type: string
-          description: Reasons why this career is a good match
         demandLevel:
           type: string
           enum: [High, Medium, Low]
-      required:
-        - career
-        - matchPercentage
-        - matchReasons
-        - demandLevel
+        matchedPrograms:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProgramMatch"
+          description: University programs the student qualifies for based on their subjects
+      required: [career, matchPercentage, matchReasons, demandLevel, matchedPrograms]
+
+    UniversityProgram:
+      type: object
+      properties:
+        id:
+          type: integer
+        schoolName:
+          type: string
+        programName:
+          type: string
+        faculty:
+          type: ["string", "null"]
+        requiredSubjects:
+          type: array
+          items:
+            type: string
+          description: Required A-Level subjects
+        minimumPoints:
+          type: ["integer", "null"]
+          description: Minimum ZIMSEC cut-off points required
+        duration:
+          type: ["string", "null"]
+          description: Duration of program e.g. 4 years
+        description:
+          type: ["string", "null"]
+        careerCategory:
+          type: ["string", "null"]
+          description: Related career category
+      required: [id, schoolName, programName, requiredSubjects]
+
+    CreateProgramRequest:
+      type: object
+      properties:
+        schoolName:
+          type: string
+        programName:
+          type: string
+        faculty:
+          type: ["string", "null"]
+        requiredSubjects:
+          type: array
+          items:
+            type: string
+        minimumPoints:
+          type: ["integer", "null"]
+        duration:
+          type: ["string", "null"]
+        description:
+          type: ["string", "null"]
+        careerCategory:
+          type: ["string", "null"]
+      required: [schoolName, programName, requiredSubjects]
+
+    ProgramMatchRequest:
+      type: object
+      properties:
+        subjects:
+          type: array
+          items:
+            type: string
+        cutOffPoints:
+          type: ["integer", "null"]
+        careerCategory:
+          type: ["string", "null"]
+      required: [subjects]
+
+    ProgramMatch:
+      type: object
+      properties:
+        program:
+          $ref: "#/components/schemas/UniversityProgram"
+        qualifies:
+          type: boolean
+          description: Whether the student fully qualifies
+        missingSubjects:
+          type: array
+          items:
+            type: string
+          description: Subjects the student is missing
+        meetsPointsRequirement:
+          type: ["boolean", "null"]
+          description: Whether student meets the cut-off points (null if no points provided or required)
+      required: [program, qualifies, missingSubjects]
+
+    UploadProgramsRequest:
+      type: object
+      properties:
+        programs:
+          type: array
+          items:
+            $ref: "#/components/schemas/CreateProgramRequest"
+          description: Array of programs to import (from JSON or parsed CSV)
+        replace:
+          type: boolean
+          description: If true, replace all existing programs
+      required: [programs]
+
+    UploadProgramsResponse:
+      type: object
+      properties:
+        imported:
+          type: integer
+        skipped:
+          type: integer
+        message:
+          type: string
+      required: [imported, skipped, message]
 
     CareerInsights:
       type: object
@@ -320,11 +704,7 @@ components:
             type: string
         averageSalary:
           type: ["string", "null"]
-      required:
-        - career
-        - demandLevel
-        - jobCount
-        - topSkills
+      required: [career, demandLevel, jobCount, topSkills]
 
     JobListing:
       type: object
@@ -339,10 +719,10 @@ components:
           type: ["string", "null"]
         description:
           type: ["string", "null"]
-      required:
-        - title
-        - company
-        - location
+        url:
+          type: ["string", "null"]
+          description: Link to the job advert
+      required: [title, company, location]
 
     ChatMessage:
       type: object
@@ -352,40 +732,31 @@ components:
           enum: [user, assistant]
         content:
           type: string
-      required:
-        - role
-        - content
+      required: [role, content]
 
     ChatRequest:
       type: object
       properties:
         message:
           type: string
-          description: The user's message to the career advisor
         history:
           type: array
           items:
             $ref: "#/components/schemas/ChatMessage"
-          description: Conversation history for context
         studentProfile:
           $ref: "#/components/schemas/StudentProfile"
-      required:
-        - message
+      required: [message]
 
     ChatResponse:
       type: object
       properties:
         message:
           type: string
-          description: The AI advisor's response
         suggestions:
           type: array
           items:
             type: string
-          description: Quick reply suggestions
-      required:
-        - message
-        - suggestions
+      required: [message, suggestions]
 
     FeedbackRequest:
       type: object
@@ -400,9 +771,7 @@ components:
           type: ["string", "null"]
         helpful:
           type: boolean
-      required:
-        - rating
-        - helpful
+      required: [rating, helpful]
 
     FeedbackResponse:
       type: object
@@ -411,6 +780,4 @@ components:
           type: integer
         message:
           type: string
-      required:
-        - id
-        - message
+      required: [id, message]

@@ -3,9 +3,10 @@
  * Do not edit manually.
  * Api
  * AI Career Guidance API for pre-university students in Zimbabwe
- * OpenAPI spec version: 0.1.0
+ * OpenAPI spec version: 0.2.0
  */
 
+export * from "./authResponse";
 export * from "./career";
 export * from "./careerInsights";
 export * from "./careerInsightsDemandLevel";
@@ -15,11 +16,23 @@ export * from "./chatMessage";
 export * from "./chatMessageRole";
 export * from "./chatRequest";
 export * from "./chatResponse";
+export * from "./createProgramRequest";
 export * from "./errorResponse";
 export * from "./feedbackRequest";
 export * from "./feedbackResponse";
 export * from "./getCareerInsightsParams";
 export * from "./getJobsParams";
+export * from "./getProgramsParams";
 export * from "./healthStatus";
 export * from "./jobListing";
+export * from "./loginRequest";
+export * from "./messageResponse";
+export * from "./programMatch";
+export * from "./programMatchRequest";
+export * from "./registerRequest";
 export * from "./studentProfile";
+export * from "./universityProgram";
+export * from "./uploadProgramsRequest";
+export * from "./uploadProgramsResponse";
+export * from "./userInfo";
+export * from "./userInfoRole";

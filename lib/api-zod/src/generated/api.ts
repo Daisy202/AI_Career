@@ -3,7 +3,7 @@
  * Do not edit manually.
  * Api
  * AI Career Guidance API for pre-university students in Zimbabwe
- * OpenAPI spec version: 0.1.0
+ * OpenAPI spec version: 0.2.0
  */
 import * as zod from "zod";
 
@@ -12,6 +12,56 @@ import * as zod from "zod";
  */
 export const HealthCheckResponse = zod.object({
   status: zod.string(),
+});
+
+/**
+ * @summary Register a new student account
+ */
+export const RegisterUserBody = zod.object({
+  name: zod.string(),
+  email: zod.string(),
+  password: zod.string(),
+  school: zod.string().nullish(),
+  level: zod.string().nullish(),
+});
+
+/**
+ * @summary Login with email and password
+ */
+export const LoginUserBody = zod.object({
+  email: zod.string(),
+  password: zod.string(),
+});
+
+export const LoginUserResponse = zod.object({
+  user: zod.object({
+    id: zod.number(),
+    name: zod.string(),
+    email: zod.string(),
+    role: zod.enum(["admin", "student"]),
+    school: zod.string().nullish(),
+    level: zod.string().nullish(),
+  }),
+  message: zod.string(),
+});
+
+/**
+ * @summary Logout current user
+ */
+export const LogoutUserResponse = zod.object({
+  message: zod.string(),
+});
+
+/**
+ * @summary Get current logged-in user
+ */
+export const GetCurrentUserResponse = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  email: zod.string(),
+  role: zod.enum(["admin", "student"]),
+  school: zod.string().nullish(),
+  level: zod.string().nullish(),
 });
 
 /**
@@ -34,22 +84,15 @@ export const GetCareersResponse = zod.array(GetCareersResponseItem);
  * @summary Get personalized career recommendations based on student profile
  */
 export const GetRecommendationsBody = zod.object({
-  interests: zod
-    .array(zod.string())
-    .describe("Areas of interest (e.g. IT, Business, Science)"),
-  strengths: zod
-    .array(zod.string())
-    .describe("Student strengths (e.g. Maths, Communication, Creativity)"),
-  subjects: zod
-    .array(zod.string())
-    .describe("A-Level subjects taken or preferred"),
-  personalityType: zod
-    .string()
-    .nullish()
-    .describe(
-      "Holland personality type (Realistic, Investigative, Artistic, Social, Enterprising, Conventional)",
-    ),
+  interests: zod.array(zod.string()),
+  strengths: zod.array(zod.string()),
+  subjects: zod.array(zod.string()),
+  personalityType: zod.string().nullish(),
   hobbies: zod.array(zod.string()).optional(),
+  cutOffPoints: zod
+    .number()
+    .nullish()
+    .describe("Student's ZIMSEC cut-off points (optional)"),
 });
 
 export const GetRecommendationsResponseItem = zod.object({
@@ -64,13 +107,51 @@ export const GetRecommendationsResponseItem = zod.object({
     averageSalary: zod.string(),
     jobOutlook: zod.string(),
   }),
-  matchPercentage: zod
-    .number()
-    .describe("How well the career matches the student profile (0-100)"),
-  matchReasons: zod
-    .array(zod.string())
-    .describe("Reasons why this career is a good match"),
+  matchPercentage: zod.number(),
+  matchReasons: zod.array(zod.string()),
   demandLevel: zod.enum(["High", "Medium", "Low"]),
+  matchedPrograms: zod
+    .array(
+      zod.object({
+        program: zod.object({
+          id: zod.number(),
+          schoolName: zod.string(),
+          programName: zod.string(),
+          faculty: zod.string().nullish(),
+          requiredSubjects: zod
+            .array(zod.string())
+            .describe("Required A-Level subjects"),
+          minimumPoints: zod
+            .number()
+            .nullish()
+            .describe("Minimum ZIMSEC cut-off points required"),
+          duration: zod
+            .string()
+            .nullish()
+            .describe("Duration of program e.g. 4 years"),
+          description: zod.string().nullish(),
+          careerCategory: zod
+            .string()
+            .nullish()
+            .describe("Related career category"),
+        }),
+        qualifies: zod
+          .boolean()
+          .describe("Whether the student fully qualifies"),
+        missingSubjects: zod
+          .array(zod.string())
+          .describe("Subjects the student is missing"),
+        meetsPointsRequirement: zod
+          .boolean()
+          .nullish()
+          .describe(
+            "Whether student meets the cut-off points (null if no points provided or required)",
+          ),
+      }),
+    )
+    .describe(
+      "University programs the student qualifies for based on their subjects",
+    ),
 });
 export const GetRecommendationsResponse = zod.array(
   GetRecommendationsResponseItem,
@@ -96,10 +177,168 @@ export const GetCareerByIdResponse = zod.object({
 });
 
 /**
+ * @summary Get all university programs
+ */
+export const GetProgramsQueryParams = zod.object({
+  school: zod.coerce.string().optional(),
+  search: zod.coerce.string().optional(),
+});
+
+export const GetProgramsResponseItem = zod.object({
+  id: zod.number(),
+  schoolName: zod.string(),
+  programName: zod.string(),
+  faculty: zod.string().nullish(),
+  requiredSubjects: zod
+    .array(zod.string())
+    .describe("Required A-Level subjects"),
+  minimumPoints: zod
+    .number()
+    .nullish()
+    .describe("Minimum ZIMSEC cut-off points required"),
+  duration: zod.string().nullish().describe("Duration of program e.g. 4 years"),
+  description: zod.string().nullish(),
+  careerCategory: zod.string().nullish().describe("Related career category"),
+});
+export const GetProgramsResponse = zod.array(GetProgramsResponseItem);
+
+/**
+ * @summary Create a new university program (admin only)
+ */
+export const CreateProgramBody = zod.object({
+  schoolName: zod.string(),
+  programName: zod.string(),
+  faculty: zod.string().nullish(),
+  requiredSubjects: zod.array(zod.string()),
+  minimumPoints: zod.number().nullish(),
+  duration: zod.string().nullish(),
+  description: zod.string().nullish(),
+  careerCategory: zod.string().nullish(),
+});
+
+/**
+ * @summary Find university programs matching student subjects and optional cut-off points
+ */
+export const MatchProgramsBody = zod.object({
+  subjects: zod.array(zod.string()),
+  cutOffPoints: zod.number().nullish(),
+  careerCategory: zod.string().nullish(),
+});
+
+export const MatchProgramsResponseItem = zod.object({
+  program: zod.object({
+    id: zod.number(),
+    schoolName: zod.string(),
+    programName: zod.string(),
+    faculty: zod.string().nullish(),
+    requiredSubjects: zod
+      .array(zod.string())
+      .describe("Required A-Level subjects"),
+    minimumPoints: zod
+      .number()
+      .nullish()
+      .describe("Minimum ZIMSEC cut-off points required"),
+    duration: zod
+      .string()
+      .nullish()
+      .describe("Duration of program e.g. 4 years"),
+    description: zod.string().nullish(),
+    careerCategory: zod.string().nullish().describe("Related career category"),
+  }),
+  qualifies: zod.boolean().describe("Whether the student fully qualifies"),
+  missingSubjects: zod
+    .array(zod.string())
+    .describe("Subjects the student is missing"),
+  meetsPointsRequirement: zod
+    .boolean()
+    .nullish()
+    .describe(
+      "Whether student meets the cut-off points (null if no points provided or required)",
+    ),
+});
+export const MatchProgramsResponse = zod.array(MatchProgramsResponseItem);
+
+/**
+ * @summary Upload programs via JSON or CSV (admin only)
+ */
+export const UploadProgramsBody = zod.object({
+  programs: zod
+    .array(
+      zod.object({
+        schoolName: zod.string(),
+        programName: zod.string(),
+        faculty: zod.string().nullish(),
+        requiredSubjects: zod.array(zod.string()),
+        minimumPoints: zod.number().nullish(),
+        duration: zod.string().nullish(),
+        description: zod.string().nullish(),
+        careerCategory: zod.string().nullish(),
+      }),
+    )
+    .describe("Array of programs to import (from JSON or parsed CSV)"),
+  replace: zod
+    .boolean()
+    .optional()
+    .describe("If true, replace all existing programs"),
+});
+
+export const UploadProgramsResponse = zod.object({
+  imported: zod.number(),
+  skipped: zod.number(),
+  message: zod.string(),
+});
+
+/**
+ * @summary Update a university program (admin only)
+ */
+export const UpdateProgramParams = zod.object({
+  programId: zod.coerce.number(),
+});
+
+export const UpdateProgramBody = zod.object({
+  schoolName: zod.string(),
+  programName: zod.string(),
+  faculty: zod.string().nullish(),
+  requiredSubjects: zod.array(zod.string()),
+  minimumPoints: zod.number().nullish(),
+  duration: zod.string().nullish(),
+  description: zod.string().nullish(),
+  careerCategory: zod.string().nullish(),
+});
+
+export const UpdateProgramResponse = zod.object({
+  id: zod.number(),
+  schoolName: zod.string(),
+  programName: zod.string(),
+  faculty: zod.string().nullish(),
+  requiredSubjects: zod
+    .array(zod.string())
+    .describe("Required A-Level subjects"),
+  minimumPoints: zod
+    .number()
+    .nullish()
+    .describe("Minimum ZIMSEC cut-off points required"),
+  duration: zod.string().nullish().describe("Duration of program e.g. 4 years"),
+  description: zod.string().nullish(),
+  careerCategory: zod.string().nullish().describe("Related career category"),
+});
+
+/**
+ * @summary Delete a university program (admin only)
+ */
+export const DeleteProgramParams = zod.object({
+  programId: zod.coerce.number(),
+});
+
+export const DeleteProgramResponse = zod.object({
+  message: zod.string(),
+});
+
+/**
  * @summary Get job market insights for a career
  */
 export const GetCareerInsightsQueryParams = zod.object({
-  career: zod.coerce.string().describe("Career name to get insights for"),
+  career: zod.coerce.string(),
 });
 
 export const GetCareerInsightsResponse = zod.object({
@@ -114,7 +353,7 @@ export const GetCareerInsightsResponse = zod.object({
  * @summary Get job listings for a career
  */
 export const GetJobsQueryParams = zod.object({
-  query: zod.coerce.string().describe("Career or job title to search for"),
+  query: zod.coerce.string(),
 });
 
 export const GetJobsResponseItem = zod.object({
@@ -123,6 +362,7 @@ export const GetJobsResponseItem = zod.object({
   location: zod.string(),
   salary: zod.string().nullish(),
   description: zod.string().nullish(),
+  url: zod.string().nullish().describe("Link to the job advert"),
 });
 export const GetJobsResponse = zod.array(GetJobsResponseItem);
 
@@ -130,7 +370,7 @@ export const GetJobsResponse = zod.array(GetJobsResponseItem);
  * @summary Send a message to the Gemini AI career advisor chatbot
  */
 export const SendChatMessageBody = zod.object({
-  message: zod.string().describe("The user's message to the career advisor"),
+  message: zod.string(),
   history: zod
     .array(
       zod.object({
@@ -138,33 +378,25 @@ export const SendChatMessageBody = zod.object({
         content: zod.string(),
       }),
     )
-    .optional()
-    .describe("Conversation history for context"),
+    .optional(),
   studentProfile: zod
     .object({
-      interests: zod
-        .array(zod.string())
-        .describe("Areas of interest (e.g. IT, Business, Science)"),
-      strengths: zod
-        .array(zod.string())
-        .describe("Student strengths (e.g. Maths, Communication, Creativity)"),
-      subjects: zod
-        .array(zod.string())
-        .describe("A-Level subjects taken or preferred"),
-      personalityType: zod
-        .string()
-        .nullish()
-        .describe(
-          "Holland personality type (Realistic, Investigative, Artistic, Social, Enterprising, Conventional)",
-        ),
+      interests: zod.array(zod.string()),
+      strengths: zod.array(zod.string()),
+      subjects: zod.array(zod.string()),
+      personalityType: zod.string().nullish(),
       hobbies: zod.array(zod.string()).optional(),
+      cutOffPoints: zod
+        .number()
+        .nullish()
+        .describe("Student's ZIMSEC cut-off points (optional)"),
     })
     .optional(),
 });
 
 export const SendChatMessageResponse = zod.object({
-  message: zod.string().describe("The AI advisor's response"),
-  suggestions: zod.array(zod.string()).describe("Quick reply suggestions"),
+  message: zod.string(),
+  suggestions: zod.array(zod.string()),
 });
 
 /**

@@ -8,38 +8,46 @@ import {
 
 const router: IRouter = Router();
 
-const MOCK_JOBS: Record<string, Array<{ title: string; company: string; location: string; salary: string | null; description: string | null }>> = {
+const MOCK_JOBS: Record<string, Array<{ title: string; company: string; location: string; salary: string | null; description: string | null; url: string | null }>> = {
   "Software Developer": [
-    { title: "Junior Software Developer", company: "Cassava Smartech", location: "Harare, Zimbabwe", salary: "USD 800/month", description: "Build fintech mobile and web applications" },
-    { title: "Full Stack Developer", company: "Econet Wireless", location: "Harare, Zimbabwe", salary: "USD 1,200/month", description: "Develop internal systems and customer-facing apps" },
-    { title: "Frontend Developer", company: "Steward Bank", location: "Harare, Zimbabwe", salary: "USD 900/month", description: "Build banking web portals" },
-    { title: "Software Engineer", company: "TelOne", location: "Harare, Zimbabwe", salary: "USD 1,000/month", description: "Develop telecommunications software" },
-    { title: "Mobile Developer", company: "Local Startup", location: "Bulawayo, Zimbabwe", salary: "USD 700/month", description: "Build Android and iOS applications" },
+    { title: "Junior Software Developer", company: "Cassava Smartech", location: "Harare, Zimbabwe", salary: "USD 800/month", description: "Build fintech mobile and web applications using modern frameworks", url: "https://www.linkedin.com/jobs/search/?keywords=software+developer+zimbabwe" },
+    { title: "Full Stack Developer", company: "Econet Wireless", location: "Harare, Zimbabwe", salary: "USD 1,200/month", description: "Develop internal systems and customer-facing applications for Africa's leading telecoms company", url: "https://www.linkedin.com/jobs/search/?keywords=full+stack+developer+zimbabwe" },
+    { title: "Frontend Developer", company: "Steward Bank", location: "Harare, Zimbabwe", salary: "USD 900/month", description: "Build banking web portals and mobile-responsive interfaces", url: "https://www.careers24.com/jobs/in-zimbabwe/software-developer" },
+    { title: "Software Engineer", company: "TelOne", location: "Harare, Zimbabwe", salary: "USD 1,000/month", description: "Develop telecommunications software and internal tools", url: "https://www.mygjobsportal.com/jobs?q=software+developer&l=zimbabwe" },
+    { title: "Mobile Developer (Android/iOS)", company: "Local Fintech Startup", location: "Harare, Zimbabwe", salary: "USD 700/month", description: "Build mobile payment and banking applications", url: "https://www.cvlibrary.co.uk/jobs/it-internet/zimbabwe" },
   ],
   "Data Analyst": [
-    { title: "Data Analyst", company: "ZB Financial Holdings", location: "Harare, Zimbabwe", salary: "USD 900/month", description: "Analyse banking data and create reports" },
-    { title: "Business Intelligence Analyst", company: "OK Zimbabwe", location: "Harare, Zimbabwe", salary: "USD 800/month", description: "Create dashboards for sales insights" },
-    { title: "Junior Data Scientist", company: "Cassava Smartech", location: "Harare, Zimbabwe", salary: "USD 1,000/month", description: "Build predictive models for fintech" },
+    { title: "Data Analyst", company: "ZB Financial Holdings", location: "Harare, Zimbabwe", salary: "USD 900/month", description: "Analyse banking data, create dashboards and financial reports", url: "https://www.linkedin.com/jobs/search/?keywords=data+analyst+zimbabwe" },
+    { title: "Business Intelligence Analyst", company: "OK Zimbabwe", location: "Harare, Zimbabwe", salary: "USD 800/month", description: "Create BI dashboards for retail sales insights and forecasting", url: "https://www.careers24.com/jobs/in-zimbabwe/data-analyst" },
+    { title: "Junior Data Scientist", company: "Cassava Smartech", location: "Harare, Zimbabwe", salary: "USD 1,000/month", description: "Build predictive models for fraud detection and customer analytics", url: "https://www.mygjobsportal.com/jobs?q=data+analyst&l=zimbabwe" },
   ],
   "Accountant": [
-    { title: "Graduate Accountant", company: "Deloitte Zimbabwe", location: "Harare, Zimbabwe", salary: "USD 600/month", description: "Audit and financial reporting" },
-    { title: "Accounts Clerk", company: "Delta Beverages", location: "Harare, Zimbabwe", salary: "USD 500/month", description: "Manage accounts payable and receivable" },
-    { title: "Finance Officer", company: "World Vision Zimbabwe", location: "Harare, Zimbabwe", salary: "USD 700/month", description: "NGO financial management" },
-    { title: "Tax Consultant", company: "PwC Zimbabwe", location: "Harare, Zimbabwe", salary: "USD 800/month", description: "Tax advisory and compliance" },
+    { title: "Graduate Accountant", company: "Deloitte Zimbabwe", location: "Harare, Zimbabwe", salary: "USD 600/month", description: "External audit, financial reporting under IFRS standards", url: "https://www2.deloitte.com/zw/en/careers.html" },
+    { title: "Accounts Clerk", company: "Delta Beverages", location: "Harare, Zimbabwe", salary: "USD 500/month", description: "Manage accounts payable, receivable and monthly reconciliations", url: "https://www.linkedin.com/jobs/search/?keywords=accountant+zimbabwe" },
+    { title: "Finance Officer", company: "World Vision Zimbabwe", location: "Harare, Zimbabwe", salary: "USD 700/month", description: "Manage NGO financial operations and donor reporting", url: "https://www.worldvision.org/about-us/careers" },
+    { title: "Tax Consultant", company: "PwC Zimbabwe", location: "Harare, Zimbabwe", salary: "USD 800/month", description: "Tax advisory and compliance services for corporate clients", url: "https://www.pwc.com/gx/en/careers/experienced-opportunities.html" },
   ],
   "Civil Engineer": [
-    { title: "Graduate Civil Engineer", company: "Zimbabwean National Roads Administration", location: "Harare, Zimbabwe", salary: "USD 900/month", description: "Road construction and maintenance" },
-    { title: "Site Engineer", company: "Chadcombe Construction", location: "Harare, Zimbabwe", salary: "USD 800/month", description: "Oversee building construction projects" },
-    { title: "Water Engineer", company: "Zimbabwe National Water Authority", location: "Harare, Zimbabwe", salary: "USD 850/month", description: "Water supply infrastructure development" },
+    { title: "Graduate Civil Engineer", company: "Zimbabwe National Road Administration", location: "Harare, Zimbabwe", salary: "USD 900/month", description: "Road construction, design and maintenance projects across Zimbabwe", url: "https://www.zinara.co.zw/careers" },
+    { title: "Site Engineer", company: "Chadcombe Construction", location: "Harare, Zimbabwe", salary: "USD 800/month", description: "Oversee residential and commercial building construction projects", url: "https://www.linkedin.com/jobs/search/?keywords=civil+engineer+zimbabwe" },
+    { title: "Water & Sanitation Engineer", company: "ZINWA", location: "Harare, Zimbabwe", salary: "USD 850/month", description: "Water supply infrastructure development and maintenance", url: "https://www.zinwa.co.zw/careers" },
   ],
   "Teacher": [
-    { title: "Secondary School Teacher (Science)", company: "St. George's College", location: "Harare, Zimbabwe", salary: "USD 400/month", description: "Teach A-Level sciences" },
-    { title: "Mathematics Teacher", company: "Harare High School", location: "Harare, Zimbabwe", salary: "USD 350/month", description: "Teach O and A Level Mathematics" },
+    { title: "Secondary School Teacher (Science)", company: "St. George's College", location: "Harare, Zimbabwe", salary: "USD 400/month", description: "Teach A-Level Biology, Chemistry and Physics", url: "https://www.zimsec.co.zw" },
+    { title: "Mathematics Teacher", company: "Harare High School", location: "Harare, Zimbabwe", salary: "USD 350/month", description: "Teach O-Level and A-Level Mathematics", url: "https://www.linkedin.com/jobs/search/?keywords=teacher+zimbabwe" },
   ],
   "Medical Doctor": [
-    { title: "Medical Officer", company: "Parirenyatwa Group of Hospitals", location: "Harare, Zimbabwe", salary: "USD 1,500/month", description: "General medical practice in public hospital" },
-    { title: "Junior Doctor", company: "Avenues Clinic", location: "Harare, Zimbabwe", salary: "USD 2,000/month", description: "Private hospital practice" },
-    { title: "GP", company: "Private Practice", location: "Bulawayo, Zimbabwe", salary: "USD 2,500/month", description: "General practice physician" },
+    { title: "Medical Officer", company: "Parirenyatwa Group of Hospitals", location: "Harare, Zimbabwe", salary: "USD 1,500/month", description: "General medical practice in Zimbabwe's largest public hospital", url: "https://www.mohcc.gov.zw/careers" },
+    { title: "Junior Doctor", company: "Avenues Clinic", location: "Harare, Zimbabwe", salary: "USD 2,000/month", description: "Clinical practice in private hospital setting", url: "https://www.linkedin.com/jobs/search/?keywords=doctor+zimbabwe" },
+    { title: "General Practitioner", company: "Private Clinic", location: "Bulawayo, Zimbabwe", salary: "USD 2,500/month", description: "Run a general practice clinic serving community patients", url: "https://www.linkedin.com/jobs/search/?keywords=general+practitioner+zimbabwe" },
+  ],
+  "Nurse": [
+    { title: "Registered Nurse", company: "Chitungwiza Hospital", location: "Chitungwiza, Zimbabwe", salary: "USD 400/month", description: "Patient care in busy public hospital ward", url: "https://www.mohcc.gov.zw/careers" },
+    { title: "ICU Nurse", company: "Avenues Clinic", location: "Harare, Zimbabwe", salary: "USD 700/month", description: "Intensive care nursing in private hospital", url: "https://www.linkedin.com/jobs/search/?keywords=nurse+zimbabwe" },
+  ],
+  "Electrical Engineer": [
+    { title: "Electrical Engineer", company: "ZESA Holdings", location: "Harare, Zimbabwe", salary: "USD 1,000/month", description: "Power generation and distribution infrastructure maintenance", url: "https://www.zesa.co.zw/careers" },
+    { title: "Junior Electrical Engineer", company: "Econet Wireless", location: "Harare, Zimbabwe", salary: "USD 900/month", description: "Telecommunications network infrastructure and maintenance", url: "https://www.linkedin.com/jobs/search/?keywords=electrical+engineer+zimbabwe" },
   ],
 };
 
@@ -50,6 +58,8 @@ const MOCK_SKILLS: Record<string, string[]> = {
   "Civil Engineer": ["AutoCAD", "Structural Analysis", "Project Management", "Site Supervision", "Surveying"],
   "Teacher": ["Curriculum Planning", "Classroom Management", "Communication", "Patience", "Subject Expertise"],
   "Medical Doctor": ["Clinical Skills", "Diagnosis", "Patient Care", "Pharmacology", "Communication", "Empathy"],
+  "Nurse": ["Patient Care", "Wound Dressing", "Medication Administration", "Vital Signs", "Empathy"],
+  "Electrical Engineer": ["Circuit Design", "AutoCAD Electrical", "Power Systems", "PLC Programming", "Safety Standards"],
 };
 
 router.get("/insights", async (req, res): Promise<void> => {
@@ -103,7 +113,8 @@ function findJobsForCareer(careerName: string) {
       company: "Various Organisations",
       location: "Zimbabwe",
       salary: "Negotiable",
-      description: `Opportunities available for qualified ${careerName} professionals`,
+      description: `Opportunities for qualified ${careerName} professionals in Zimbabwe`,
+      url: `https://www.linkedin.com/jobs/search/?keywords=${encodeURIComponent(careerName)}+zimbabwe`,
     },
   ];
 }

@@ -6,15 +6,12 @@
  * OpenAPI spec version: 0.2.0
  */
 
-export interface FeedbackRequest {
-  /**
-   * @minimum 1
-   * @maximum 5
-   */
-  rating: number;
+export interface RegisterRequest {
+  name: string;
+  email: string;
+  password: string;
   /** @nullable */
-  comment?: string | null;
+  school?: string | null;
   /** @nullable */
-  careerName?: string | null;
-  helpful: boolean;
+  level?: string | null;
 }

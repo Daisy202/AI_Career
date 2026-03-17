@@ -3,7 +3,7 @@
  * Do not edit manually.
  * Api
  * AI Career Guidance API for pre-university students in Zimbabwe
- * OpenAPI spec version: 0.1.0
+ * OpenAPI spec version: 0.2.0
  */
 import { useMutation, useQuery } from "@tanstack/react-query";
 import type {
@@ -17,19 +17,31 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
+  AuthResponse,
   Career,
   CareerInsights,
   CareerRecommendation,
   ChatRequest,
   ChatResponse,
+  CreateProgramRequest,
   ErrorResponse,
   FeedbackRequest,
   FeedbackResponse,
   GetCareerInsightsParams,
   GetJobsParams,
+  GetProgramsParams,
   HealthStatus,
   JobListing,
+  LoginRequest,
+  MessageResponse,
+  ProgramMatch,
+  ProgramMatchRequest,
+  RegisterRequest,
   StudentProfile,
+  UniversityProgram,
+  UploadProgramsRequest,
+  UploadProgramsResponse,
+  UserInfo,
 } from "./api.schemas";
 
 import { customFetch } from "../custom-fetch";
@@ -108,6 +120,334 @@ export function useHealthCheck<
   request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getHealthCheckQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Register a new student account
+ */
+export const getRegisterUserUrl = () => {
+  return `/api/auth/register`;
+};
+
+export const registerUser = async (
+  registerRequest: RegisterRequest,
+  options?: RequestInit,
+): Promise<AuthResponse> => {
+  return customFetch<AuthResponse>(getRegisterUserUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(registerRequest),
+  });
+};
+
+export const getRegisterUserMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof registerUser>>,
+    TError,
+    { data: BodyType<RegisterRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof registerUser>>,
+  TError,
+  { data: BodyType<RegisterRequest> },
+  TContext
+> => {
+  const mutationKey = ["registerUser"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof registerUser>>,
+    { data: BodyType<RegisterRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return registerUser(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RegisterUserMutationResult = NonNullable<
+  Awaited<ReturnType<typeof registerUser>>
+>;
+export type RegisterUserMutationBody = BodyType<RegisterRequest>;
+export type RegisterUserMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Register a new student account
+ */
+export const useRegisterUser = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof registerUser>>,
+    TError,
+    { data: BodyType<RegisterRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof registerUser>>,
+  TError,
+  { data: BodyType<RegisterRequest> },
+  TContext
+> => {
+  return useMutation(getRegisterUserMutationOptions(options));
+};
+
+/**
+ * @summary Login with email and password
+ */
+export const getLoginUserUrl = () => {
+  return `/api/auth/login`;
+};
+
+export const loginUser = async (
+  loginRequest: LoginRequest,
+  options?: RequestInit,
+): Promise<AuthResponse> => {
+  return customFetch<AuthResponse>(getLoginUserUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(loginRequest),
+  });
+};
+
+export const getLoginUserMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof loginUser>>,
+    TError,
+    { data: BodyType<LoginRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof loginUser>>,
+  TError,
+  { data: BodyType<LoginRequest> },
+  TContext
+> => {
+  const mutationKey = ["loginUser"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof loginUser>>,
+    { data: BodyType<LoginRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return loginUser(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type LoginUserMutationResult = NonNullable<
+  Awaited<ReturnType<typeof loginUser>>
+>;
+export type LoginUserMutationBody = BodyType<LoginRequest>;
+export type LoginUserMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Login with email and password
+ */
+export const useLoginUser = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof loginUser>>,
+    TError,
+    { data: BodyType<LoginRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof loginUser>>,
+  TError,
+  { data: BodyType<LoginRequest> },
+  TContext
+> => {
+  return useMutation(getLoginUserMutationOptions(options));
+};
+
+/**
+ * @summary Logout current user
+ */
+export const getLogoutUserUrl = () => {
+  return `/api/auth/logout`;
+};
+
+export const logoutUser = async (
+  options?: RequestInit,
+): Promise<MessageResponse> => {
+  return customFetch<MessageResponse>(getLogoutUserUrl(), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getLogoutUserMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof logoutUser>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof logoutUser>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = ["logoutUser"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof logoutUser>>,
+    void
+  > = () => {
+    return logoutUser(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type LogoutUserMutationResult = NonNullable<
+  Awaited<ReturnType<typeof logoutUser>>
+>;
+
+export type LogoutUserMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Logout current user
+ */
+export const useLogoutUser = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof logoutUser>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof logoutUser>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getLogoutUserMutationOptions(options));
+};
+
+/**
+ * @summary Get current logged-in user
+ */
+export const getGetCurrentUserUrl = () => {
+  return `/api/auth/me`;
+};
+
+export const getCurrentUser = async (
+  options?: RequestInit,
+): Promise<UserInfo> => {
+  return customFetch<UserInfo>(getGetCurrentUserUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetCurrentUserQueryKey = () => {
+  return [`/api/auth/me`] as const;
+};
+
+export const getGetCurrentUserQueryOptions = <
+  TData = Awaited<ReturnType<typeof getCurrentUser>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getCurrentUser>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetCurrentUserQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getCurrentUser>>> = ({
+    signal,
+  }) => getCurrentUser({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getCurrentUser>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetCurrentUserQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getCurrentUser>>
+>;
+export type GetCurrentUserQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Get current logged-in user
+ */
+
+export function useGetCurrentUser<
+  TData = Awaited<ReturnType<typeof getCurrentUser>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getCurrentUser>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetCurrentUserQueryOptions(options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;
@@ -361,6 +701,529 @@ export function useGetCareerById<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Get all university programs
+ */
+export const getGetProgramsUrl = (params?: GetProgramsParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/programs?${stringifiedParams}`
+    : `/api/programs`;
+};
+
+export const getPrograms = async (
+  params?: GetProgramsParams,
+  options?: RequestInit,
+): Promise<UniversityProgram[]> => {
+  return customFetch<UniversityProgram[]>(getGetProgramsUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetProgramsQueryKey = (params?: GetProgramsParams) => {
+  return [`/api/programs`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetProgramsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getPrograms>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetProgramsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getPrograms>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetProgramsQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getPrograms>>> = ({
+    signal,
+  }) => getPrograms(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getPrograms>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetProgramsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getPrograms>>
+>;
+export type GetProgramsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get all university programs
+ */
+
+export function useGetPrograms<
+  TData = Awaited<ReturnType<typeof getPrograms>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetProgramsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getPrograms>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetProgramsQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Create a new university program (admin only)
+ */
+export const getCreateProgramUrl = () => {
+  return `/api/programs`;
+};
+
+export const createProgram = async (
+  createProgramRequest: CreateProgramRequest,
+  options?: RequestInit,
+): Promise<UniversityProgram> => {
+  return customFetch<UniversityProgram>(getCreateProgramUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createProgramRequest),
+  });
+};
+
+export const getCreateProgramMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createProgram>>,
+    TError,
+    { data: BodyType<CreateProgramRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createProgram>>,
+  TError,
+  { data: BodyType<CreateProgramRequest> },
+  TContext
+> => {
+  const mutationKey = ["createProgram"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createProgram>>,
+    { data: BodyType<CreateProgramRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createProgram(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateProgramMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createProgram>>
+>;
+export type CreateProgramMutationBody = BodyType<CreateProgramRequest>;
+export type CreateProgramMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Create a new university program (admin only)
+ */
+export const useCreateProgram = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createProgram>>,
+    TError,
+    { data: BodyType<CreateProgramRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createProgram>>,
+  TError,
+  { data: BodyType<CreateProgramRequest> },
+  TContext
+> => {
+  return useMutation(getCreateProgramMutationOptions(options));
+};
+
+/**
+ * @summary Find university programs matching student subjects and optional cut-off points
+ */
+export const getMatchProgramsUrl = () => {
+  return `/api/programs/match`;
+};
+
+export const matchPrograms = async (
+  programMatchRequest: ProgramMatchRequest,
+  options?: RequestInit,
+): Promise<ProgramMatch[]> => {
+  return customFetch<ProgramMatch[]>(getMatchProgramsUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(programMatchRequest),
+  });
+};
+
+export const getMatchProgramsMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof matchPrograms>>,
+    TError,
+    { data: BodyType<ProgramMatchRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof matchPrograms>>,
+  TError,
+  { data: BodyType<ProgramMatchRequest> },
+  TContext
+> => {
+  const mutationKey = ["matchPrograms"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof matchPrograms>>,
+    { data: BodyType<ProgramMatchRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return matchPrograms(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type MatchProgramsMutationResult = NonNullable<
+  Awaited<ReturnType<typeof matchPrograms>>
+>;
+export type MatchProgramsMutationBody = BodyType<ProgramMatchRequest>;
+export type MatchProgramsMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Find university programs matching student subjects and optional cut-off points
+ */
+export const useMatchPrograms = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof matchPrograms>>,
+    TError,
+    { data: BodyType<ProgramMatchRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof matchPrograms>>,
+  TError,
+  { data: BodyType<ProgramMatchRequest> },
+  TContext
+> => {
+  return useMutation(getMatchProgramsMutationOptions(options));
+};
+
+/**
+ * @summary Upload programs via JSON or CSV (admin only)
+ */
+export const getUploadProgramsUrl = () => {
+  return `/api/programs/upload`;
+};
+
+export const uploadPrograms = async (
+  uploadProgramsRequest: UploadProgramsRequest,
+  options?: RequestInit,
+): Promise<UploadProgramsResponse> => {
+  return customFetch<UploadProgramsResponse>(getUploadProgramsUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(uploadProgramsRequest),
+  });
+};
+
+export const getUploadProgramsMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof uploadPrograms>>,
+    TError,
+    { data: BodyType<UploadProgramsRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof uploadPrograms>>,
+  TError,
+  { data: BodyType<UploadProgramsRequest> },
+  TContext
+> => {
+  const mutationKey = ["uploadPrograms"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof uploadPrograms>>,
+    { data: BodyType<UploadProgramsRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return uploadPrograms(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UploadProgramsMutationResult = NonNullable<
+  Awaited<ReturnType<typeof uploadPrograms>>
+>;
+export type UploadProgramsMutationBody = BodyType<UploadProgramsRequest>;
+export type UploadProgramsMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Upload programs via JSON or CSV (admin only)
+ */
+export const useUploadPrograms = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof uploadPrograms>>,
+    TError,
+    { data: BodyType<UploadProgramsRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof uploadPrograms>>,
+  TError,
+  { data: BodyType<UploadProgramsRequest> },
+  TContext
+> => {
+  return useMutation(getUploadProgramsMutationOptions(options));
+};
+
+/**
+ * @summary Update a university program (admin only)
+ */
+export const getUpdateProgramUrl = (programId: number) => {
+  return `/api/programs/${programId}`;
+};
+
+export const updateProgram = async (
+  programId: number,
+  createProgramRequest: CreateProgramRequest,
+  options?: RequestInit,
+): Promise<UniversityProgram> => {
+  return customFetch<UniversityProgram>(getUpdateProgramUrl(programId), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createProgramRequest),
+  });
+};
+
+export const getUpdateProgramMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateProgram>>,
+    TError,
+    { programId: number; data: BodyType<CreateProgramRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateProgram>>,
+  TError,
+  { programId: number; data: BodyType<CreateProgramRequest> },
+  TContext
+> => {
+  const mutationKey = ["updateProgram"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateProgram>>,
+    { programId: number; data: BodyType<CreateProgramRequest> }
+  > = (props) => {
+    const { programId, data } = props ?? {};
+
+    return updateProgram(programId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateProgramMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateProgram>>
+>;
+export type UpdateProgramMutationBody = BodyType<CreateProgramRequest>;
+export type UpdateProgramMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Update a university program (admin only)
+ */
+export const useUpdateProgram = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateProgram>>,
+    TError,
+    { programId: number; data: BodyType<CreateProgramRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateProgram>>,
+  TError,
+  { programId: number; data: BodyType<CreateProgramRequest> },
+  TContext
+> => {
+  return useMutation(getUpdateProgramMutationOptions(options));
+};
+
+/**
+ * @summary Delete a university program (admin only)
+ */
+export const getDeleteProgramUrl = (programId: number) => {
+  return `/api/programs/${programId}`;
+};
+
+export const deleteProgram = async (
+  programId: number,
+  options?: RequestInit,
+): Promise<MessageResponse> => {
+  return customFetch<MessageResponse>(getDeleteProgramUrl(programId), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteProgramMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteProgram>>,
+    TError,
+    { programId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteProgram>>,
+  TError,
+  { programId: number },
+  TContext
+> => {
+  const mutationKey = ["deleteProgram"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteProgram>>,
+    { programId: number }
+  > = (props) => {
+    const { programId } = props ?? {};
+
+    return deleteProgram(programId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteProgramMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteProgram>>
+>;
+
+export type DeleteProgramMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Delete a university program (admin only)
+ */
+export const useDeleteProgram = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteProgram>>,
+    TError,
+    { programId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteProgram>>,
+  TError,
+  { programId: number },
+  TContext
+> => {
+  return useMutation(getDeleteProgramMutationOptions(options));
+};
 
 /**
  * @summary Get job market insights for a career
@@ -651,7 +1514,7 @@ export const submitFeedback = async (
 };
 
 export const getSubmitFeedbackMutationOptions = <
-  TError = ErrorType<ErrorResponse>,
+  TError = ErrorType<unknown>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -692,13 +1555,13 @@ export type SubmitFeedbackMutationResult = NonNullable<
   Awaited<ReturnType<typeof submitFeedback>>
 >;
 export type SubmitFeedbackMutationBody = BodyType<FeedbackRequest>;
-export type SubmitFeedbackMutationError = ErrorType<ErrorResponse>;
+export type SubmitFeedbackMutationError = ErrorType<unknown>;
 
 /**
  * @summary Submit feedback about career recommendations
  */
 export const useSubmitFeedback = <
-  TError = ErrorType<ErrorResponse>,
+  TError = ErrorType<unknown>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<

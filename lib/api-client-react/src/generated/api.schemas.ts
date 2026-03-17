@@ -3,7 +3,7 @@
  * Do not edit manually.
  * Api
  * AI Career Guidance API for pre-university students in Zimbabwe
- * OpenAPI spec version: 0.1.0
+ * OpenAPI spec version: 0.2.0
  */
 export interface HealthStatus {
   status: string;
@@ -11,6 +11,48 @@ export interface HealthStatus {
 
 export interface ErrorResponse {
   error: string;
+}
+
+export interface MessageResponse {
+  message: string;
+}
+
+export interface RegisterRequest {
+  name: string;
+  email: string;
+  password: string;
+  /** @nullable */
+  school?: string | null;
+  /** @nullable */
+  level?: string | null;
+}
+
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+export type UserInfoRole = (typeof UserInfoRole)[keyof typeof UserInfoRole];
+
+export const UserInfoRole = {
+  admin: "admin",
+  student: "student",
+} as const;
+
+export interface UserInfo {
+  id: number;
+  name: string;
+  email: string;
+  role: UserInfoRole;
+  /** @nullable */
+  school?: string | null;
+  /** @nullable */
+  level?: string | null;
+}
+
+export interface AuthResponse {
+  user: UserInfo;
+  message: string;
 }
 
 export interface Career {
@@ -26,18 +68,17 @@ export interface Career {
 }
 
 export interface StudentProfile {
-  /** Areas of interest (e.g. IT, Business, Science) */
   interests: string[];
-  /** Student strengths (e.g. Maths, Communication, Creativity) */
   strengths: string[];
-  /** A-Level subjects taken or preferred */
   subjects: string[];
-  /**
-   * Holland personality type (Realistic, Investigative, Artistic, Social, Enterprising, Conventional)
-   * @nullable
-   */
+  /** @nullable */
   personalityType?: string | null;
   hobbies?: string[];
+  /**
+   * Student's ZIMSEC cut-off points (optional)
+   * @nullable
+   */
+  cutOffPoints?: number | null;
 }
 
 export type CareerRecommendationDemandLevel =
@@ -49,13 +90,90 @@ export const CareerRecommendationDemandLevel = {
   Low: "Low",
 } as const;
 
+export interface UniversityProgram {
+  id: number;
+  schoolName: string;
+  programName: string;
+  /** @nullable */
+  faculty?: string | null;
+  /** Required A-Level subjects */
+  requiredSubjects: string[];
+  /**
+   * Minimum ZIMSEC cut-off points required
+   * @nullable
+   */
+  minimumPoints?: number | null;
+  /**
+   * Duration of program e.g. 4 years
+   * @nullable
+   */
+  duration?: string | null;
+  /** @nullable */
+  description?: string | null;
+  /**
+   * Related career category
+   * @nullable
+   */
+  careerCategory?: string | null;
+}
+
+export interface ProgramMatch {
+  program: UniversityProgram;
+  /** Whether the student fully qualifies */
+  qualifies: boolean;
+  /** Subjects the student is missing */
+  missingSubjects: string[];
+  /**
+   * Whether student meets the cut-off points (null if no points provided or required)
+   * @nullable
+   */
+  meetsPointsRequirement?: boolean | null;
+}
+
 export interface CareerRecommendation {
   career: Career;
-  /** How well the career matches the student profile (0-100) */
   matchPercentage: number;
-  /** Reasons why this career is a good match */
   matchReasons: string[];
   demandLevel: CareerRecommendationDemandLevel;
+  /** University programs the student qualifies for based on their subjects */
+  matchedPrograms: ProgramMatch[];
+}
+
+export interface CreateProgramRequest {
+  schoolName: string;
+  programName: string;
+  /** @nullable */
+  faculty?: string | null;
+  requiredSubjects: string[];
+  /** @nullable */
+  minimumPoints?: number | null;
+  /** @nullable */
+  duration?: string | null;
+  /** @nullable */
+  description?: string | null;
+  /** @nullable */
+  careerCategory?: string | null;
+}
+
+export interface ProgramMatchRequest {
+  subjects: string[];
+  /** @nullable */
+  cutOffPoints?: number | null;
+  /** @nullable */
+  careerCategory?: string | null;
+}
+
+export interface UploadProgramsRequest {
+  /** Array of programs to import (from JSON or parsed CSV) */
+  programs: CreateProgramRequest[];
+  /** If true, replace all existing programs */
+  replace?: boolean;
+}
+
+export interface UploadProgramsResponse {
+  imported: number;
+  skipped: number;
+  message: string;
 }
 
 export type CareerInsightsDemandLevel =
@@ -84,6 +202,11 @@ export interface JobListing {
   salary?: string | null;
   /** @nullable */
   description?: string | null;
+  /**
+   * Link to the job advert
+   * @nullable
+   */
+  url?: string | null;
 }
 
 export type ChatMessageRole =
@@ -100,17 +223,13 @@ export interface ChatMessage {
 }
 
 export interface ChatRequest {
-  /** The user's message to the career advisor */
   message: string;
-  /** Conversation history for context */
   history?: ChatMessage[];
   studentProfile?: StudentProfile;
 }
 
 export interface ChatResponse {
-  /** The AI advisor's response */
   message: string;
-  /** Quick reply suggestions */
   suggestions: string[];
 }
 
@@ -132,16 +251,15 @@ export interface FeedbackResponse {
   message: string;
 }
 
+export type GetProgramsParams = {
+  school?: string;
+  search?: string;
+};
+
 export type GetCareerInsightsParams = {
-  /**
-   * Career name to get insights for
-   */
   career: string;
 };
 
 export type GetJobsParams = {
-  /**
-   * Career or job title to search for
-   */
   query: string;
 };

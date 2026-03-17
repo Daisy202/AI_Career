@@ -5,16 +5,15 @@
  * AI Career Guidance API for pre-university students in Zimbabwe
  * OpenAPI spec version: 0.2.0
  */
+import type { UserInfoRole } from "./userInfoRole";
 
-export interface FeedbackRequest {
-  /**
-   * @minimum 1
-   * @maximum 5
-   */
-  rating: number;
+export interface UserInfo {
+  id: number;
+  name: string;
+  email: string;
+  role: UserInfoRole;
   /** @nullable */
-  comment?: string | null;
+  school?: string | null;
   /** @nullable */
-  careerName?: string | null;
-  helpful: boolean;
+  level?: string | null;
 }

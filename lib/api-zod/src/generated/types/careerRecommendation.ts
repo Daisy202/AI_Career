@@ -3,16 +3,17 @@
  * Do not edit manually.
  * Api
  * AI Career Guidance API for pre-university students in Zimbabwe
- * OpenAPI spec version: 0.1.0
+ * OpenAPI spec version: 0.2.0
  */
 import type { Career } from "./career";
 import type { CareerRecommendationDemandLevel } from "./careerRecommendationDemandLevel";
+import type { ProgramMatch } from "./programMatch";
 
 export interface CareerRecommendation {
   career: Career;
-  /** How well the career matches the student profile (0-100) */
   matchPercentage: number;
-  /** Reasons why this career is a good match */
   matchReasons: string[];
   demandLevel: CareerRecommendationDemandLevel;
+  /** University programs the student qualifies for based on their subjects */
+  matchedPrograms: ProgramMatch[];
 }

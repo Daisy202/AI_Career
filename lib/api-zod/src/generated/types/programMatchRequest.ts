@@ -6,16 +6,10 @@
  * OpenAPI spec version: 0.2.0
  */
 
-export interface StudentProfile {
-  interests: string[];
-  strengths: string[];
+export interface ProgramMatchRequest {
   subjects: string[];
   /** @nullable */
-  personalityType?: string | null;
-  hobbies?: string[];
-  /**
-   * Student's ZIMSEC cut-off points (optional)
-   * @nullable
-   */
   cutOffPoints?: number | null;
+  /** @nullable */
+  careerCategory?: string | null;
 }
