@@ -1,164 +1,173 @@
 # AI Career Guidance System
 
-An AI-driven web application providing personalized career and academic guidance for pre-university students in Zimbabwe. Students complete a career assessment and receive tailored recommendations, program matches, and AI-powered advice.
+AI-assisted web app for **pre-university students in Zimbabwe**: career assessment, program matching, recommendations, and optional **local LLM** advice via [Ollama](https://ollama.ai).
+
+**Repository:** [github.com/Daisy202/AI_Career](https://github.com/Daisy202/AI_Career)
+
+## Features
+
+- Student **sign up / login** and **profile** (subjects, goals)
+- **Career assessment** and **recommendations** with program matching
+- **AI career chat** (when Ollama is running)
+- **Admin** tools for managing content (seeded admin user for local dev)
+
+## Stack
+
+| Layer | Technology |
+|--------|------------|
+| Frontend | React 19, Vite 7, Tailwind, Wouter |
+| Backend | Express 5, session cookies |
+| Data | SQLite (file), Drizzle ORM |
+| AI (optional) | Ollama (e.g. Gemma) |
 
 ## Prerequisites
 
-- **Node.js** 18+ (24 recommended)
-- **pnpm** (package manager)
-- **Ollama** (for AI advice — optional but recommended)
+- **Node.js** 18+ (24 LTS recommended)
+- **[pnpm](https://pnpm.io)** — this repo expects `pnpm` (npm/yarn are blocked by `preinstall`)
+- **Ollama** — optional; needed for AI-generated advice
 
-## Quick Start
+## Quick start
 
-### 1. Install dependencies
+### 1. Clone and install
 
 ```bash
+git clone https://github.com/Daisy202/AI_Career.git
+cd AI_Career
 pnpm install
 ```
 
-### 2. Set up the database
+### 2. Environment (optional)
+
+Copy the example env file and edit if needed:
 
 ```bash
-# Push schema to SQLite (creates data/aicareerguide.db)
-pnpm --filter @workspace/db run push
+cp .env.example .env
+```
 
-# Seed careers, programs, and admin user
+Key variables (see `.env.example`):
+
+| Variable | Purpose |
+|----------|---------|
+| `OLLAMA_BASE_URL` | Default `http://localhost:11434` |
+| `OLLAMA_MODEL` | e.g. `gemma3:1b` |
+| `PORT` | API port (default **8081**) |
+
+### 3. Database
+
+Creates `data/aicareerguide.db` (local only; `*.db` is gitignored).
+
+```bash
+pnpm --filter @workspace/db run push
 pnpm --filter @workspace/scripts run seed
 ```
 
-### 3. (Optional) Add TelOne programs
+### 4. (Optional) TelOne Centre for Learning programs
 
 ```bash
 pnpm --filter @workspace/scripts run seed-telone
 ```
 
-### 4. Start the API server
+### 5. Run API + frontend
+
+**Terminal 1 — API (port 8081)**
 
 ```bash
 pnpm --filter @workspace/api-server run dev
 ```
 
-Runs on **http://localhost:8081**
-
-### 5. Start the frontend
-
-In a new terminal:
+**Terminal 2 — UI (port 5173, proxies `/api`)**
 
 ```bash
 pnpm --filter @workspace/career-guidance run dev
 ```
 
-Runs on **http://localhost:5173** (proxies `/api` to the backend)
+Open **http://localhost:5173**.
 
 ---
 
-## Running Both Services
+## Ollama (AI advice)
 
-Use two terminals:
-
-| Terminal 1 | Terminal 2 |
-|------------|------------|
-| `pnpm --filter @workspace/api-server run dev` | `pnpm --filter @workspace/career-guidance run dev` |
-
-Then open **http://localhost:5173** in your browser.
-
----
-
-## Environment Variables
-
-Create a `.env` file in the project root (optional):
-
-```env
-# Database (default: data/aicareerguide.db)
-# DATABASE_URL=file:./data/aicareerguide.db
-
-# Ollama (for AI career advice)
-OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_MODEL=gemma3:1b
-
-# Ports (optional)
-# PORT=8081          # API server
-# PORT=5173          # Frontend (via career-guidance)
-```
-
-## Ollama Setup (AI Advice)
-
-For AI-generated career advice:
-
-1. Install [Ollama](https://ollama.ai)
+1. Install [Ollama](https://ollama.ai).
 2. Pull a model: `ollama pull gemma3:1b`
-3. Ensure Ollama is running (default: http://localhost:11434)
+3. Run the daemon (usually automatic): `ollama serve`
 
-Without Ollama, the app still works; AI advice will be skipped.
+Without Ollama, the rest of the app still works; AI responses may be omitted or degraded.
 
 ---
 
-## Scripts Reference
+## Scripts reference
 
 | Command | Description |
 |---------|-------------|
-| `pnpm --filter @workspace/api-server run dev` | Start API server (port 8081) |
-| `pnpm --filter @workspace/career-guidance run dev` | Start frontend (port 5173) |
-| `pnpm --filter @workspace/scripts run seed` | Seed database (programs, admin) |
-| `pnpm --filter @workspace/scripts run seed-telone` | Add TelOne Centre for Learning programs |
-| `pnpm --filter @workspace/scripts run fix-mbchb` | Update MBChB to "at least 3 of 4" subjects |
-| `pnpm --filter @workspace/db run push` | Push schema to database |
-| `pnpm --filter @workspace/api-spec run codegen` | Regenerate API client after OpenAPI changes |
+| `pnpm --filter @workspace/api-server run dev` | API dev server |
+| `pnpm --filter @workspace/career-guidance run dev` | Frontend dev server |
+| `pnpm --filter @workspace/db run push` | Apply Drizzle schema to SQLite |
+| `pnpm --filter @workspace/scripts run seed` | Seed careers, programs, admin user |
+| `pnpm --filter @workspace/scripts run seed-telone` | Add TelOne programs |
+| `pnpm --filter @workspace/scripts run migrate-sqlite` | Legacy/raw SQL migration helper |
+| `pnpm --filter @workspace/scripts run fix-mbchb` | Data fix: MBChB subject rule |
+| `pnpm --filter @workspace/api-spec run codegen` | Regenerate clients from OpenAPI |
+
+Root: `pnpm run build` — typecheck + package builds.
 
 ---
 
-## Admin Access
+## Admin (local dev)
 
-After seeding:
+After `seed`:
 
-- **Admin panel**: http://localhost:5173/admin (when logged in as admin)
-- **Email**: admin@careerguide.zw
-- **Password**: Admin@123
+| | |
+|--|--|
+| URL | http://localhost:5173/admin (when logged in as admin) |
+| Email | `admin@careerguide.zw` |
+| Password | `Admin@123` |
+
+Change these before any real deployment.
 
 ---
 
-## Project Structure
+## Project layout
 
 ```
 artifacts/
-├── api-server/              # Express backend (port 8081)
-└── career-guidance/         # React + Vite frontend (port 5173)
+├── api-server/           # Express API
+└── career-guidance/      # React + Vite SPA
 
 lib/
-├── api-spec/                # OpenAPI spec + codegen
-├── api-client-react/        # Generated React Query hooks
-├── api-zod/                 # Generated Zod schemas
-└── db/                      # Drizzle schema + SQLite
+├── api-spec/             # OpenAPI + Orval codegen
+├── api-client-react/     # Generated React Query client
+├── api-zod/              # Generated Zod types
+└── db/                   # Drizzle schema
 
-scripts/
-└── src/                     # Seed, migrate, fix scripts
+scripts/                  # seed, migrate, fixes
 ```
 
 ---
 
 ## Troubleshooting
 
-**Port 8081 already in use**
+**Port 8081 in use (Windows PowerShell)**
 
-```bash
-# Windows (PowerShell)
+```powershell
 netstat -ano | findstr :8081
 taskkill /PID <PID> /F
-
-# macOS/Linux
-lsof -i :8081
-kill -9 <PID>
 ```
 
-**Database not found**
+**Missing or empty database**
 
 ```bash
 pnpm --filter @workspace/db run push
 pnpm --filter @workspace/scripts run seed
 ```
 
-**AI advice not showing**
+**No AI text in chat**
 
-- Ensure Ollama is running: `ollama serve`
-- Pull the model: `ollama pull gemma3:1b`
-- Check `.env` has `OLLAMA_BASE_URL` and `OLLAMA_MODEL`
+- Ollama running: `ollama serve`
+- Model pulled: `ollama pull <your-model>`
+- `.env` matches `OLLAMA_BASE_URL` and `OLLAMA_MODEL`
+
+---
+
+## License
+
+MIT (see root `package.json`).

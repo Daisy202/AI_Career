@@ -6,6 +6,8 @@
   "scripts": {
     "hello": "tsx ./src/hello.ts",
     "seed": "tsx ./src/seed.ts",
+    "seed-telone": "tsx ./src/seed-telone.ts",
+    "migrate-sqlite": "tsx ./src/migrate-sqlite.ts",
     "fix-mbchb": "tsx ./src/fix-mbchb.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
