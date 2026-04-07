@@ -149,9 +149,7 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/CareerRecommendation"
+                $ref: "#/components/schemas/RecommendationsResponse"
         "400":
           description: Invalid input
           content:
@@ -549,6 +547,12 @@ components:
           type: array
           items:
             type: string
+          description: A-Level subjects the student has passed
+        oLevelSubjects:
+          type: array
+          items:
+            type: string
+          description: O-Level subjects the student has passed
         personalityType:
           type: ["string", "null"]
         hobbies:
@@ -558,7 +562,40 @@ components:
         cutOffPoints:
           type: ["integer", "null"]
           description: Student's ZIMSEC cut-off points (optional)
+        oLevelPasses:
+          type: ["integer", "null"]
+          description: Number of O-Level passes (minimum 5 required for most programs)
+        aLevelPasses:
+          type: ["integer", "null"]
+          description: Number of A-Level passes (minimum 2 required for most programs)
       required: [interests, strengths, subjects]
+
+    AiRecommendedProgram:
+      type: object
+      properties:
+        programName:
+          type: string
+        schoolName:
+          type: string
+      required: [programName, schoolName]
+      description: Program AI recommended, verified against DB
+
+    RecommendationsResponse:
+      type: object
+      properties:
+        recommendations:
+          type: array
+          items:
+            $ref: "#/components/schemas/CareerRecommendation"
+        aiAdvice:
+          type: string
+          description: AI-generated personalized advice based on profile and DB programs
+        aiRecommendedPrograms:
+          type: array
+          items:
+            $ref: "#/components/schemas/AiRecommendedProgram"
+          description: Programs AI recommended that exist in our database (cross-referenced)
+      required: [recommendations]
 
     CareerRecommendation:
       type: object
@@ -597,9 +634,18 @@ components:
           items:
             type: string
           description: Required A-Level subjects
+        minRequiredSubjects:
+          type: ["integer", "null"]
+          description: Minimum number of required subjects needed (e.g. 2 = at least 2 of the listed). Null = all required.
         minimumPoints:
           type: ["integer", "null"]
           description: Minimum ZIMSEC cut-off points required
+        minOLevelPasses:
+          type: ["integer", "null"]
+          description: Minimum O-Level passes required (default 5)
+        minALevelPasses:
+          type: ["integer", "null"]
+          description: Minimum A-Level passes required (default 2)
         duration:
           type: ["string", "null"]
           description: Duration of program e.g. 4 years
@@ -623,8 +669,17 @@ components:
           type: array
           items:
             type: string
+        minRequiredSubjects:
+          type: ["integer", "null"]
+          description: Minimum number of required subjects needed (e.g. 2 = at least 2 of the listed). Null = all required.
         minimumPoints:
           type: ["integer", "null"]
+        minOLevelPasses:
+          type: ["integer", "null"]
+          description: Minimum O-Level passes (default 5)
+        minALevelPasses:
+          type: ["integer", "null"]
+          description: Minimum A-Level passes (default 2)
         duration:
           type: ["string", "null"]
         description:
@@ -642,6 +697,12 @@ components:
             type: string
         cutOffPoints:
           type: ["integer", "null"]
+        oLevelPasses:
+          type: ["integer", "null"]
+          description: Number of O-Level passes (minimum 5)
+        aLevelPasses:
+          type: ["integer", "null"]
+          description: Number of A-Level passes (minimum 2)
         careerCategory:
           type: ["string", "null"]
       required: [subjects]
@@ -662,6 +723,16 @@ components:
         meetsPointsRequirement:
           type: ["boolean", "null"]
           description: Whether student meets the cut-off points (null if no points provided or required)
+        meetsOLevelRequirement:
+          type: ["boolean", "null"]
+          description: Whether student meets O-Level pass requirement
+        meetsALevelRequirement:
+          type: ["boolean", "null"]
+          description: Whether student meets A-Level pass requirement
+        pointsChance:
+          type: ["string", "null"]
+          enum: [high, equal, low]
+          description: With user's points - high/equal/low chance to enroll (informational only, does not affect qualification)
       required: [program, qualifies, missingSubjects]
 
     UploadProgramsRequest:

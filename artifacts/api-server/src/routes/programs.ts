@@ -14,13 +14,14 @@ import {
   DeleteProgramParams,
   DeleteProgramResponse,
 } from "@workspace/api-zod";
-import { eq, ilike, or, sql } from "drizzle-orm";
-import { requireAdmin } from "../lib/auth.js";
+import { eq, or, sql } from "drizzle-orm";
+import { requireAdmin, requireAuth } from "../lib/auth.js";
+import { fileLogger } from "../lib/fileLogger.js";
 
 const router: IRouter = Router();
 
 // GET /programs
-router.get("/programs", async (req, res): Promise<void> => {
+router.get("/programs", requireAuth, async (req, res): Promise<void> => {
   const params = GetProgramsQueryParams.safeParse(req.query);
   if (!params.success) {
     res.status(400).json({ error: "Invalid query params" });
@@ -31,14 +32,16 @@ router.get("/programs", async (req, res): Promise<void> => {
   const conditions = [];
 
   if (params.data.school) {
-    conditions.push(ilike(universityProgramsTable.schoolName, `%${params.data.school}%`));
+    const pattern = `%${params.data.school}%`;
+    conditions.push(sql`LOWER(${universityProgramsTable.schoolName}) LIKE LOWER(${pattern})`);
   }
   if (params.data.search) {
+    const pattern = `%${params.data.search}%`;
     conditions.push(
       or(
-        ilike(universityProgramsTable.programName, `%${params.data.search}%`),
-        ilike(universityProgramsTable.schoolName, `%${params.data.search}%`),
-        ilike(universityProgramsTable.faculty, `%${params.data.search}%`)
+        sql`LOWER(${universityProgramsTable.programName}) LIKE LOWER(${pattern})`,
+        sql`LOWER(${universityProgramsTable.schoolName}) LIKE LOWER(${pattern})`,
+        sql`LOWER(${universityProgramsTable.faculty}) LIKE LOWER(${pattern})`
       )
     );
   }
@@ -69,18 +72,24 @@ router.post("/programs", requireAdmin, async (req, res): Promise<void> => {
   }
 
   const [row] = await db.insert(universityProgramsTable).values(parsed.data).returning();
+  const userId = (req as { session?: { userId?: number } }).session?.userId;
+  fileLogger.logAdmin({
+    userId,
+    action: "Admin created program",
+    details: { programName: row.programName, schoolName: row.schoolName },
+  });
   res.status(201).json(row);
 });
 
 // POST /programs/match - find programs matching student subjects/points
-router.post("/programs/match", async (req, res): Promise<void> => {
+router.post("/programs/match", requireAuth, async (req, res): Promise<void> => {
   const parsed = MatchProgramsBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
 
-  const { subjects, cutOffPoints, careerCategory } = parsed.data;
+  const { subjects, cutOffPoints, oLevelPasses, aLevelPasses, careerCategory } = parsed.data;
   const studentSubjectsLower = subjects.map(s => s.toLowerCase().trim());
 
   let programs = await db.select().from(universityProgramsTable).orderBy(universityProgramsTable.schoolName);
@@ -93,25 +102,46 @@ router.post("/programs/match", async (req, res): Promise<void> => {
 
   const matches = programs.map(program => {
     const requiredLower = program.requiredSubjects.map(s => s.toLowerCase().trim());
+    const minRequired = program.minRequiredSubjects ?? requiredLower.length;
 
-    const missingSubjects = requiredLower.filter(required =>
+    const matchedCount = requiredLower.filter(required =>
+      studentSubjectsLower.some(s => s.includes(required) || required.includes(s) || subjectAlias(s, required))
+    ).length;
+    const qualifiesBySubjects = matchedCount >= minRequired;
+
+    const missingSubjects = qualifiesBySubjects ? [] : requiredLower.filter(required =>
       !studentSubjectsLower.some(s => s.includes(required) || required.includes(s) || subjectAlias(s, required))
-    );
-
-    const qualifies = missingSubjects.length === 0;
+    ).map(s => program.requiredSubjects.find(r => r.toLowerCase().trim() === s) || s);
 
     let meetsPointsRequirement: boolean | null = null;
     if (cutOffPoints !== null && cutOffPoints !== undefined && program.minimumPoints !== null && program.minimumPoints !== undefined) {
       meetsPointsRequirement = cutOffPoints >= program.minimumPoints;
     }
 
+    const minO = program.minOLevelPasses ?? 5;
+    const minA = program.minALevelPasses ?? 2;
+    let meetsOLevelRequirement: boolean | null = null;
+    let meetsALevelRequirement: boolean | null = null;
+    if (oLevelPasses !== null && oLevelPasses !== undefined) {
+      meetsOLevelRequirement = oLevelPasses >= minO;
+    }
+    if (aLevelPasses !== null && aLevelPasses !== undefined) {
+      meetsALevelRequirement = aLevelPasses >= minA;
+    }
+
+    const qualifies =
+      qualifiesBySubjects &&
+      (meetsOLevelRequirement !== false) &&
+      (meetsALevelRequirement !== false) &&
+      (meetsPointsRequirement !== false);
+
     return {
       program,
       qualifies,
-      missingSubjects: missingSubjects.map(s =>
-        program.requiredSubjects.find(r => r.toLowerCase().trim() === s) || s
-      ),
+      missingSubjects,
       meetsPointsRequirement,
+      meetsOLevelRequirement,
+      meetsALevelRequirement,
     };
   });
 
@@ -143,6 +173,13 @@ router.post("/programs/upload", requireAdmin, async (req, res): Promise<void> =>
       skipped++;
     }
   }
+
+  const userId = (req as { session?: { userId?: number } }).session?.userId;
+  fileLogger.logAdmin({
+    userId,
+    action: "Admin bulk uploaded programs",
+    details: { imported, skipped, replace },
+  });
 
   res.json(
     UploadProgramsResponse.parse({
@@ -177,6 +214,13 @@ router.patch("/programs/:programId", requireAdmin, async (req, res): Promise<voi
     res.status(404).json({ error: "Program not found" });
     return;
   }
+
+  const userId = (req as { session?: { userId?: number } }).session?.userId;
+  fileLogger.logAdmin({
+    userId,
+    action: "Admin updated program",
+    details: { programId: row.id, programName: row.programName },
+  });
 
   res.json(UpdateProgramResponse.parse(row));
 });

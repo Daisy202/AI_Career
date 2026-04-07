@@ -22,7 +22,7 @@ export const CAREERS: CareerData[] = [
     universityPrograms: ["BSc Computer Science", "BSc Software Engineering", "BSc Information Technology"],
     averageSalary: "USD 800 - 2,500/month",
     jobOutlook: "Excellent - High demand across all sectors",
-    keywords: ["IT", "technology", "computing", "coding", "programming", "maths", "analytical", "problem-solving"],
+    keywords: ["IT", "technology", "computing", "coding", "programming", "maths", "analytical", "problem-solving", "diploma", "o-level"],
   },
   {
     id: 2,
@@ -34,7 +34,7 @@ export const CAREERS: CareerData[] = [
     universityPrograms: ["BSc Statistics", "BSc Data Science", "BSc Computer Science", "BCom Economics"],
     averageSalary: "USD 700 - 2,000/month",
     jobOutlook: "Very High - Growing demand in banking, retail, and government",
-    keywords: ["IT", "technology", "maths", "data", "analytical", "statistics", "business"],
+    keywords: ["IT", "technology", "maths", "data", "analytical", "statistics", "business", "diploma", "o-level"],
   },
   {
     id: 3,
@@ -46,7 +46,7 @@ export const CAREERS: CareerData[] = [
     universityPrograms: ["BCom Accounting", "BAcc", "BCom Finance", "ACCA Professional"],
     averageSalary: "USD 500 - 1,800/month",
     jobOutlook: "Stable - Always in demand across all industries",
-    keywords: ["business", "finance", "maths", "accounts", "commerce", "numbers", "analytical"],
+    keywords: ["business", "finance", "maths", "accounts", "commerce", "numbers", "analytical", "diploma", "o-level"],
   },
   {
     id: 4,
@@ -162,13 +162,23 @@ export function recommendCareers(profile: {
   interests: string[];
   strengths: string[];
   subjects: string[];
+  oLevelSubjects?: string[];
+  oLevelPasses?: number | null;
+  aLevelPasses?: number | null;
   personalityType?: string | null;
   hobbies?: string[];
 }): Array<{ career: CareerData; matchPercentage: number; matchReasons: string[]; demandLevel: "High" | "Medium" | "Low" }> {
+  const aLevelCount = (profile.subjects ?? []).length;
+  const oLevelCount = (profile.oLevelSubjects ?? []).length;
+  const hasMinALevel = (profile.aLevelPasses ?? 0) >= 2 || aLevelCount >= 2;
+  const hasMinOLevel = (profile.oLevelPasses ?? 0) >= 5 || oLevelCount >= 5;
+  const meetsBestFit = hasMinALevel && hasMinOLevel;
+
   const allTerms = [
     ...profile.interests.map(s => s.toLowerCase()),
     ...profile.strengths.map(s => s.toLowerCase()),
-    ...profile.subjects.map(s => s.toLowerCase()),
+    ...(profile.subjects ?? []).map(s => s.toLowerCase()),
+    ...(profile.oLevelSubjects ?? []).map(s => s.toLowerCase()),
     ...(profile.hobbies || []).map(s => s.toLowerCase()),
     (profile.personalityType || "").toLowerCase(),
   ];
@@ -177,29 +187,77 @@ export function recommendCareers(profile: {
     let score = 0;
     const reasons: string[] = [];
 
-    // Match against keywords
-    const keywordMatches = career.keywords.filter(kw =>
-      allTerms.some(term => term.includes(kw) || kw.includes(term))
-    );
-    score += keywordMatches.length * 15;
-
-    // Match subjects
+    // Match subjects - best fit requires ≥2 A-Level and ≥5 O-Level
     const subjectMatches = career.aLevelSubjects.filter(sub =>
-      profile.subjects.some(s => s.toLowerCase().includes(sub.toLowerCase()) || sub.toLowerCase().includes(s.toLowerCase()))
+      (profile.subjects ?? []).some(s => s.toLowerCase().includes(sub.toLowerCase()) || sub.toLowerCase().includes(s.toLowerCase()))
     );
     if (subjectMatches.length > 0) {
-      score += subjectMatches.length * 20;
-      reasons.push(`Your subjects (${subjectMatches.slice(0, 2).join(", ")}) align well with this career`);
+      score += subjectMatches.length * 15;
+    }
+    const aLevelList = (profile.subjects ?? []).slice(0, 4).join(", ");
+    const oLevelList = (profile.oLevelSubjects ?? []).slice(0, 6).join(", ");
+    const careerReqs = career.aLevelSubjects.filter(s => !/any|relevant|combination/i.test(s));
+    const careerALevelReq = (careerReqs.length > 0 ? careerReqs : ["Mathematics", "English"]).slice(0, 3).join(", ");
+    const oLevelExample = oLevelList || "English, Mathematics, Science";
+
+    if (meetsBestFit && (profile.subjects ?? []).length >= 2) {
+      reasons.push(`With your A-Level subjects (${aLevelList}) and O-Level subjects (${oLevelList || "English, Maths, Science"}), you can pursue these programs as they fit you`);
+    } else if (meetsBestFit && oLevelCount >= 5) {
+      reasons.push(`With your O-Level subjects (${oLevelList}), you can pursue diploma programs in this field`);
+    } else {
+      reasons.push(`With at least 2 A-Level subjects (e.g. ${careerALevelReq || "Mathematics, Physics"}) and 5 O-Level subjects (e.g. ${oLevelExample}), you could qualify for programs in this field`);
     }
 
-    // Match interests to category
+    // Match interests to category - weight interests strongly (people may have different interests than subjects)
+    const categoryToInterest: Record<string, string[]> = {
+      "Technology": ["technology", "tech", "it", "ict", "computing", "programming", "software", "data"],
+      "Business & Finance": ["business", "finance", "commerce", "accounting", "entrepreneurship"],
+      "Engineering": ["engineering", "technical", "construction", "design"],
+      "Healthcare": ["health", "medicine", "nursing", "helping people"],
+      "Education": ["education", "teaching", "social"],
+      "Law": ["law", "legal", "justice"],
+      "Media & Communication": ["media", "communication", "writing", "journalism", "arts"],
+      "Social Sciences": ["social", "psychology", "society", "research"],
+      "Agriculture": ["agriculture", "farming", "environment"],
+    };
     const categoryLower = career.category.toLowerCase();
-    const interestMatch = profile.interests.some(i =>
-      categoryLower.includes(i.toLowerCase()) || i.toLowerCase().includes(categoryLower.split(" ")[0])
-    );
+    const interestMatch = profile.interests.some(i => {
+      const il = i.toLowerCase();
+      if (categoryLower.includes(il) || il.includes(categoryLower.split(" ")[0])) return true;
+      const aliases = categoryToInterest[career.category];
+      return aliases?.some(a => il.includes(a) || a.includes(il)) ?? false;
+    });
     if (interestMatch) {
+      score += 30;
+      if (!reasons.some(r => r.includes("interest"))) {
+        reasons.push(`Your interest in ${career.category} aligns with this field`);
+      }
+    }
+
+    // O-Level subject keywords match (for students without A-Level - interests can differ from subjects)
+    if (aLevelCount === 0 && oLevelCount >= 5) {
+      const oLevelTerms = (profile.oLevelSubjects ?? []).map(s => s.toLowerCase());
+      const keywordMatches = career.keywords.filter(k =>
+        oLevelTerms.some(t => t.includes(k.toLowerCase()) || k.toLowerCase().includes(t))
+      );
+      if (keywordMatches.length > 0) {
+        score += keywordMatches.length * 5;
+      }
+    }
+
+    // Best fit bonus: ≥2 A-Level subjects AND ≥5 O-Level subjects
+    if (meetsBestFit) {
       score += 25;
-      reasons.push(`Your interest in ${career.category} matches this field`);
+    }
+    // O-Level only: boost careers with diploma programs (Technology, Business)
+    const hasDiplomaPath = ["Technology", "Business & Finance"].includes(career.category);
+    if (aLevelCount === 0 && oLevelCount >= 5 && hasDiplomaPath) {
+      score += 30;
+      reasons.push(`Diploma programs in ${career.category} don't require A-Level—5 O-Level passes can qualify you`);
+    }
+    // A-Level users: also show poly/diploma options (shorter, practical path)
+    if (aLevelCount >= 2 && oLevelCount >= 5 && hasDiplomaPath) {
+      reasons.push(`Diploma/polytechnic programs in ${career.category} are also an option—no A-Level required, shorter duration`);
     }
 
     // Match strengths to required skills
@@ -207,8 +265,7 @@ export function recommendCareers(profile: {
       profile.strengths.some(s => skill.toLowerCase().includes(s.toLowerCase()) || s.toLowerCase().includes(skill.toLowerCase()))
     );
     if (skillMatches.length > 0) {
-      score += skillMatches.length * 10;
-      reasons.push(`Your strength in ${skillMatches[0]} is essential for this career`);
+      score += skillMatches.length * 8;
     }
 
     // Personality type matching (Holland theory)
@@ -222,13 +279,12 @@ export function recommendCareers(profile: {
         (pt === "enterprising" && ["Business & Finance", "Law"].includes(career.category)) ||
         (pt === "conventional" && ["Business & Finance", "Technology"].includes(career.category))
       ) {
-        score += 20;
-        reasons.push(`Your ${profile.personalityType} personality type suits this field`);
+        score += 15;
       }
     }
 
     if (reasons.length === 0 && score > 0) {
-      reasons.push(`Matches your academic profile`);
+      reasons.push(`If you have the required subjects (e.g. ${careerALevelReq || "Mathematics"} at A-Level, and English, Maths, Science at O-Level) or equivalent, you can pursue programs in this field`);
     }
 
     const matchPercentage = Math.min(Math.round((score / 100) * 100), 99);
@@ -247,8 +303,28 @@ export function recommendCareers(profile: {
     return { career, matchPercentage, matchReasons: reasons, demandLevel };
   });
 
-  return scores
-    .filter(s => s.matchPercentage > 10)
+  let filtered = scores.filter(s => s.matchPercentage > 10);
+
+  // O-Level only with 5+ passes: ensure at least 2 diploma paths are shown (no A-Level required)
+  if (aLevelCount === 0 && oLevelCount >= 5) {
+    const diplomaIds = [1, 2, 3]; // Software Developer, Data Analyst, Accountant
+    const includedIds = new Set(filtered.map(s => s.career.id));
+    for (const id of diplomaIds) {
+      if (includedIds.has(id)) continue;
+      const s = scores.find(x => x.career.id === id);
+      if (s) {
+        filtered.push({
+          ...s,
+          matchPercentage: Math.max(s.matchPercentage, 40),
+          matchReasons: s.matchReasons.includes("Diploma programs")
+            ? s.matchReasons
+            : [...s.matchReasons, "Diploma programs don't require A-Level—5 O-Level passes can qualify you"],
+        });
+      }
+    }
+  }
+
+  return filtered
     .sort((a, b) => b.matchPercentage - a.matchPercentage)
-    .slice(0, 5);
+    .slice(0, 6);
 }

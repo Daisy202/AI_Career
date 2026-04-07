@@ -12,8 +12,23 @@ export interface CreateProgramRequest {
   /** @nullable */
   faculty?: string | null;
   requiredSubjects: string[];
+  /**
+   * Minimum number of required subjects needed (e.g. 2 = at least 2 of the listed). Null = all required.
+   * @nullable
+   */
+  minRequiredSubjects?: number | null;
   /** @nullable */
   minimumPoints?: number | null;
+  /**
+   * Minimum O-Level passes (default 5)
+   * @nullable
+   */
+  minOLevelPasses?: number | null;
+  /**
+   * Minimum A-Level passes (default 2)
+   * @nullable
+   */
+  minALevelPasses?: number | null;
   /** @nullable */
   duration?: string | null;
   /** @nullable */

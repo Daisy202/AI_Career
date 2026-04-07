@@ -2,7 +2,7 @@
 
 ## Overview
 
-An AI-driven web application providing personalized career and academic guidance for pre-university students in Zimbabwe. Students complete a career assessment questionnaire and receive tailored career recommendations, job market insights, and can chat with a Gemini AI career advisor.
+An AI-driven web application providing personalized career and academic guidance for pre-university students in Zimbabwe. Students complete a career assessment questionnaire and receive tailored career recommendations, job market insights, and can chat with an Ollama-powered AI career advisor.
 
 ## Stack
 
@@ -12,12 +12,12 @@ An AI-driven web application providing personalized career and academic guidance
 - **TypeScript version**: 5.9
 - **Frontend**: React + Vite + TypeScript (artifacts/career-guidance)
 - **Backend**: Express 5 + Node.js (artifacts/api-server)
-- **Database**: PostgreSQL + Drizzle ORM
+- **Database**: SQLite + Drizzle ORM
 - **Validation**: Zod (`zod/v4`), `drizzle-zod`
 - **API codegen**: Orval (from OpenAPI spec)
 - **Charts**: Recharts
 - **State management**: Zustand
-- **AI Chatbot**: Google Gemini 2.0 Flash
+- **AI Chatbot**: Ollama (local LLM)
 - **Forms**: React Hook Form + Zod resolvers
 - **Animations**: Framer Motion
 
@@ -78,8 +78,9 @@ lib/
 
 ## Environment Variables / Secrets
 
-- `DATABASE_URL` — PostgreSQL connection (auto-provisioned)
-- `GEMINI_API_KEY` — Google Gemini API key for AI chatbot
+- `DATABASE_URL` — SQLite file path (default: data/aicareerguide.db)
+- `OLLAMA_BASE_URL` — Ollama API URL (default: http://localhost:11434)
+- `OLLAMA_MODEL` — Model name (default: llama3.2). Run `ollama pull llama3.2` first
 
 ## TypeScript & Composite Projects
 

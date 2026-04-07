@@ -5,6 +5,7 @@
  * AI Career Guidance API for pre-university students in Zimbabwe
  * OpenAPI spec version: 0.2.0
  */
+import type { ProgramMatchPointsChance } from "./programMatchPointsChance";
 import type { UniversityProgram } from "./universityProgram";
 
 export interface ProgramMatch {
@@ -18,4 +19,19 @@ export interface ProgramMatch {
    * @nullable
    */
   meetsPointsRequirement?: boolean | null;
+  /**
+   * Whether student meets O-Level pass requirement
+   * @nullable
+   */
+  meetsOLevelRequirement?: boolean | null;
+  /**
+   * Whether student meets A-Level pass requirement
+   * @nullable
+   */
+  meetsALevelRequirement?: boolean | null;
+  /**
+   * With user's points - high/equal/low chance to enroll (informational only, does not affect qualification)
+   * @nullable
+   */
+  pointsChance?: ProgramMatchPointsChance;
 }

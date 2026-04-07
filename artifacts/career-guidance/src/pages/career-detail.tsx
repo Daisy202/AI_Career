@@ -36,7 +36,7 @@ export default function CareerDetailPage() {
   return (
     <div className="min-h-screen bg-background pb-20">
       {/* Dynamic Header */}
-      <div className="bg-gradient-to-br from-primary to-slate-900 text-white pt-16 pb-24 px-4 relative overflow-hidden">
+      <div className="bg-gradient-to-br from-primary to-slate-900 text-white pt-16 pb-24 px-4 sm:px-5 lg:px-6 relative overflow-hidden">
         <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
         <div className="max-w-5xl mx-auto relative z-10">
           <Link href="/recommendations" className="inline-flex items-center text-white/70 hover:text-white mb-8 transition-colors">
@@ -48,7 +48,7 @@ export default function CareerDetailPage() {
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto px-4 -mt-12 relative z-20 space-y-8">
+      <div className="max-w-5xl mx-auto px-4 sm:px-5 lg:px-6 -mt-12 relative z-20 space-y-8">
         
         {/* Quick Stats Grid */}
         <div className="grid sm:grid-cols-3 gap-4">

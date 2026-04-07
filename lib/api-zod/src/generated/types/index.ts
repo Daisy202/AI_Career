@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.2.0
  */
 
+export * from "./aiRecommendedProgram";
 export * from "./authResponse";
 export * from "./career";
 export * from "./careerInsights";
@@ -28,7 +29,9 @@ export * from "./jobListing";
 export * from "./loginRequest";
 export * from "./messageResponse";
 export * from "./programMatch";
+export * from "./programMatchPointsChance";
 export * from "./programMatchRequest";
+export * from "./recommendationsResponse";
 export * from "./registerRequest";
 export * from "./studentProfile";
 export * from "./universityProgram";

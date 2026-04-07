@@ -10,7 +10,7 @@ export default function DashboardPage() {
 
   if (isLoading) {
     return (
-      <div className="p-8 max-w-7xl mx-auto space-y-8">
+      <div className="px-4 sm:px-5 lg:px-6 py-8 max-w-7xl mx-auto space-y-8">
         <Skeleton className="h-10 w-64 mb-4" />
         <div className="grid md:grid-cols-3 gap-6">
           {[1,2,3].map(i => <Skeleton key={i} className="h-32 rounded-2xl" />)}
@@ -40,7 +40,7 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-muted/20 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-7xl mx-auto px-4 sm:px-5 lg:px-6">
         <div className="mb-10">
           <h1 className="text-4xl font-extrabold mb-2 text-foreground">Market Dashboard</h1>
           <p className="text-lg text-muted-foreground">Macro view of the Zimbabwean career landscape.</p>

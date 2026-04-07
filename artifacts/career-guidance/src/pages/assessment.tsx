@@ -14,6 +14,11 @@ const subjectsList = [
   "Business Studies", "English Literature", "Art & Design", "Agriculture"
 ];
 
+const oLevelSubjectsList = [
+  "English Language", "Mathematics", "Biology", "Chemistry", "Physics",
+  "Geography", "History", "Commerce", "Accounting", "Computer Science"
+];
+
 const interestsList = [
   "Technology & Software", "Healthcare & Medicine", "Business & Finance", 
   "Arts & Entertainment", "Engineering & Architecture", "Law & Public Policy",
@@ -37,19 +42,22 @@ const personalityTypes = [
 const formSchema = z.object({
   interests: z.array(z.string()).min(1, "Select at least one interest"),
   strengths: z.array(z.string()).min(1, "Select at least one strength"),
-  subjects: z.array(z.string()).min(1, "Select at least one A-Level subject"),
+  subjects: z.array(z.string()),
+  oLevelSubjects: z.array(z.string()).optional().default([]),
   personalityType: z.string().min(1, "Select a personality type"),
   hobbies: z.string().optional(),
-  cutOffPoints: z.coerce.number().min(0).max(20).optional().nullable()
+  cutOffPoints: z.coerce.number().min(0).max(20).optional().nullable(),
+  oLevelPasses: z.coerce.number().min(0).max(10).optional().nullable(),
+  aLevelPasses: z.coerce.number().min(0).max(5).optional().nullable()
 });
 
 type FormValues = z.infer<typeof formSchema>;
 
 export default function AssessmentPage() {
   const [, setLocation] = useLocation();
-  const setProfile = useCareerStore((s) => s.setProfile);
+  const { setProfile, user } = useCareerStore();
   const [step, setStep] = useState(1);
-  const totalSteps = 6;
+  const totalSteps = 7;
 
   const { control, handleSubmit, watch, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -57,25 +65,46 @@ export default function AssessmentPage() {
       interests: [],
       strengths: [],
       subjects: [],
+      oLevelSubjects: [],
       personalityType: "",
       hobbies: "",
-      cutOffPoints: null
+      cutOffPoints: null,
+      oLevelPasses: null,
+      aLevelPasses: null
     }
   });
 
-  const onSubmit = (data: FormValues) => {
-    // Transform hobbies string to array simply by splitting comma
+  const clearRecommendations = useCareerStore(s => s.clearRecommendations);
+
+  const onSubmit = async (data: FormValues) => {
     const hobbiesArray = data.hobbies ? data.hobbies.split(',').map(s => s.trim()).filter(Boolean) : [];
-    
-    setProfile({
+    const profileData = {
       interests: data.interests,
       strengths: data.strengths,
       subjects: data.subjects,
+      oLevelSubjects: data.oLevelSubjects,
       personalityType: data.personalityType,
       hobbies: hobbiesArray,
-      cutOffPoints: data.cutOffPoints
-    });
-    
+      cutOffPoints: data.cutOffPoints,
+      oLevelPasses: data.oLevelPasses,
+      aLevelPasses: data.aLevelPasses
+    };
+    clearRecommendations(); // Invalidate cache so fresh results are fetched
+    setProfile(profileData);
+
+    if (user) {
+      try {
+        await fetch("/api/profile", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify(profileData),
+        });
+      } catch {
+        // ignore
+      }
+    }
+
     setLocation("/recommendations");
   };
 
@@ -84,8 +113,8 @@ export default function AssessmentPage() {
     const w = watch();
     if (step === 1 && w.interests.length === 0) return;
     if (step === 2 && w.strengths.length === 0) return;
-    if (step === 3 && w.subjects.length === 0) return;
-    if (step === 4 && !w.personalityType) return;
+    if (step === 3 && (w.oLevelSubjects?.length ?? 0) === 0) return;
+    if (step === 5 && !w.personalityType) return;
     
     if (step < totalSteps) setStep(s => s + 1);
   };
@@ -135,7 +164,7 @@ export default function AssessmentPage() {
   );
 
   return (
-    <div className="min-h-screen bg-muted/30 py-12 px-4">
+    <div className="min-h-screen bg-muted/30 py-12 px-4 sm:px-5 lg:px-6">
       <div className="max-w-3xl mx-auto">
         <div className="mb-8 text-center">
           <div className="inline-flex items-center justify-center p-3 bg-primary/10 text-primary rounded-full mb-4">
@@ -188,14 +217,44 @@ export default function AssessmentPage() {
                 {step === 3 && (
                   <div className="space-y-6">
                     <div>
-                      <h2 className="text-2xl font-bold mb-2">Select your A-Level Subjects</h2>
-                      <p className="text-muted-foreground">What subjects are you currently taking or planning to take?</p>
+                      <h2 className="text-2xl font-bold mb-2">Select your O-Level Subjects</h2>
+                      <p className="text-muted-foreground">Select all subjects you passed at O-Level. Required for diploma and degree matching.</p>
                     </div>
-                    {renderCheckboxGrid("subjects", subjectsList, errors.subjects)}
+                    {renderCheckboxGrid("oLevelSubjects", oLevelSubjectsList, errors.oLevelSubjects)}
                   </div>
                 )}
 
                 {step === 4 && (
+                  <div className="space-y-6">
+                    <div>
+                      <h2 className="text-2xl font-bold mb-2">Select your A-Level Subjects</h2>
+                      <p className="text-muted-foreground">What subjects are you taking or planning? Skip if you only have O-Level (diploma path).</p>
+                    </div>
+                    {renderCheckboxGrid("subjects", subjectsList, errors.subjects)}
+                    <div className="space-y-2 pt-4 border-t border-border">
+                      <Label className="text-base font-semibold">A-Level Cut-off Points (Optional)</Label>
+                      <p className="text-sm text-muted-foreground">Enter your ZIMSEC points (0–20) for a chance analysis. Does not affect recommendations.</p>
+                      <Controller
+                        name="cutOffPoints"
+                        control={control}
+                        render={({ field }) => (
+                          <Input
+                            type="number"
+                            min={0}
+                            max={20}
+                            placeholder="e.g. 12"
+                            {...field}
+                            value={field.value ?? ""}
+                            onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : null)}
+                            className="max-w-[140px]"
+                          />
+                        )}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {step === 5 && (
                   <div className="space-y-6">
                     <div>
                       <h2 className="text-2xl font-bold mb-2">What is your Personality Type?</h2>
@@ -235,7 +294,7 @@ export default function AssessmentPage() {
                   </div>
                 )}
 
-                {step === 5 && (
+                {step === 6 && (
                   <div className="space-y-6">
                     <div>
                       <h2 className="text-2xl font-bold mb-2">Any hobbies or extra details?</h2>
@@ -255,37 +314,80 @@ export default function AssessmentPage() {
                   </div>
                 )}
 
-                {step === 6 && (
+                {step === 7 && (
                   <div className="space-y-6">
                     <div>
-                      <h2 className="text-2xl font-bold mb-2">Academic Performance (Optional)</h2>
-                      <p className="text-muted-foreground">Enter your ZIMSEC cut-off points to find matched university programs.</p>
+                      <h2 className="text-2xl font-bold mb-2">Academic Performance</h2>
+                      <p className="text-muted-foreground">Enter your O-Level passes, A-Level passes, and cut-off points. Most programs require at least 5 O-Level and 2 A-Level passes.</p>
                     </div>
-                    <div className="max-w-xs mx-auto text-center space-y-4 pt-4">
-                      <Label className="text-lg">A-Level Points (0-20)</Label>
-                      <Controller
-                        name="cutOffPoints"
-                        control={control}
-                        render={({ field }) => (
-                          <Input 
-                            type="number"
-                            min={0}
-                            max={20}
-                            {...field}
-                            value={field.value ?? ""}
-                            onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : null)}
-                            className="text-center text-3xl h-16"
-                          />
-                        )}
-                      />
-                      {errors.cutOffPoints && <p className="text-destructive font-semibold text-sm">{errors.cutOffPoints.message}</p>}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                      <div className="space-y-2 text-center">
+                        <Label className="text-lg">O-Level Passes</Label>
+                        <Controller
+                          name="oLevelPasses"
+                          control={control}
+                          render={({ field }) => (
+                            <Input 
+                              type="number"
+                              min={0}
+                              max={10}
+                              placeholder="e.g. 5"
+                              {...field}
+                              value={field.value ?? ""}
+                              onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : null)}
+                              className="text-center text-xl h-14"
+                            />
+                          )}
+                        />
+                        <p className="text-xs text-muted-foreground">Min 5 for most programs</p>
+                      </div>
+                      <div className="space-y-2 text-center">
+                        <Label className="text-lg">A-Level Passes</Label>
+                        <Controller
+                          name="aLevelPasses"
+                          control={control}
+                          render={({ field }) => (
+                            <Input 
+                              type="number"
+                              min={0}
+                              max={5}
+                              placeholder="e.g. 2"
+                              {...field}
+                              value={field.value ?? ""}
+                              onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : null)}
+                              className="text-center text-xl h-14"
+                            />
+                          )}
+                        />
+                        <p className="text-xs text-muted-foreground">Min 2 for most programs</p>
+                      </div>
+                      <div className="space-y-2 text-center">
+                        <Label className="text-lg">A-Level Points (0-20)</Label>
+                        <Controller
+                          name="cutOffPoints"
+                          control={control}
+                          render={({ field }) => (
+                            <Input 
+                              type="number"
+                              min={0}
+                              max={20}
+                              placeholder="Cut-off"
+                              {...field}
+                              value={field.value ?? ""}
+                              onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : null)}
+                              className="text-center text-xl h-14"
+                            />
+                          )}
+                        />
+                        <p className="text-xs text-muted-foreground">ZIMSEC cut-off</p>
+                      </div>
                     </div>
 
                     <div className="bg-secondary/10 border border-secondary/20 rounded-xl p-6 mt-8 flex items-start gap-4">
                       <CheckCircle2 className="w-8 h-8 text-secondary shrink-0 mt-1" />
                       <div>
                         <h4 className="font-bold text-lg mb-1">Ready to discover your path?</h4>
-                        <p className="text-muted-foreground text-sm">By submitting, our Gemini AI will analyze your profile and cross-reference it with the Zimbabwean job market data.</p>
+                        <p className="text-muted-foreground text-sm">By submitting, our AI will analyze your profile and cross-reference it with the Zimbabwean job market data.</p>
                       </div>
                     </div>
                   </div>

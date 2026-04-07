@@ -1,16 +1,29 @@
-import { drizzle } from "drizzle-orm/node-postgres";
-import pg from "pg";
+import { drizzle } from "drizzle-orm/libsql";
+import { createClient } from "@libsql/client";
 import * as schema from "./schema";
+import path from "path";
+import { mkdirSync, existsSync } from "fs";
+import { fileURLToPath } from "url";
 
-const { Pool } = pg;
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const workspaceRoot = path.resolve(__dirname, "..", "..", "..");
 
-if (!process.env.DATABASE_URL) {
-  throw new Error(
-    "DATABASE_URL must be set. Did you forget to provision a database?",
-  );
+const dbPath =
+  process.env.DATABASE_URL ||
+  path.resolve(workspaceRoot, "data", "aicareerguide.db");
+
+const url = dbPath.startsWith("file:") || dbPath.startsWith("http")
+  ? dbPath
+  : `file:${dbPath.replace(/\\/g, "/")}`;
+
+if (!dbPath.startsWith(":") && !dbPath.startsWith("http") && dbPath !== "") {
+  const dir = path.dirname(dbPath);
+  if (!existsSync(dir)) {
+    mkdirSync(dir, { recursive: true });
+  }
 }
 
-export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-export const db = drizzle(pool, { schema });
+export const client = createClient({ url });
+export const db = drizzle(client, { schema });
 
 export * from "./schema";

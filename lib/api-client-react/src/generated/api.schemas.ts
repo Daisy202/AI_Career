@@ -70,7 +70,10 @@ export interface Career {
 export interface StudentProfile {
   interests: string[];
   strengths: string[];
+  /** A-Level subjects the student has passed */
   subjects: string[];
+  /** O-Level subjects the student has passed */
+  oLevelSubjects?: string[];
   /** @nullable */
   personalityType?: string | null;
   hobbies?: string[];
@@ -79,6 +82,24 @@ export interface StudentProfile {
    * @nullable
    */
   cutOffPoints?: number | null;
+  /**
+   * Number of O-Level passes (minimum 5 required for most programs)
+   * @nullable
+   */
+  oLevelPasses?: number | null;
+  /**
+   * Number of A-Level passes (minimum 2 required for most programs)
+   * @nullable
+   */
+  aLevelPasses?: number | null;
+}
+
+/**
+ * Program AI recommended, verified against DB
+ */
+export interface AiRecommendedProgram {
+  programName: string;
+  schoolName: string;
 }
 
 export type CareerRecommendationDemandLevel =
@@ -99,10 +120,25 @@ export interface UniversityProgram {
   /** Required A-Level subjects */
   requiredSubjects: string[];
   /**
+   * Minimum number of required subjects needed (e.g. 2 = at least 2 of the listed). Null = all required.
+   * @nullable
+   */
+  minRequiredSubjects?: number | null;
+  /**
    * Minimum ZIMSEC cut-off points required
    * @nullable
    */
   minimumPoints?: number | null;
+  /**
+   * Minimum O-Level passes required (default 5)
+   * @nullable
+   */
+  minOLevelPasses?: number | null;
+  /**
+   * Minimum A-Level passes required (default 2)
+   * @nullable
+   */
+  minALevelPasses?: number | null;
   /**
    * Duration of program e.g. 4 years
    * @nullable
@@ -117,6 +153,20 @@ export interface UniversityProgram {
   careerCategory?: string | null;
 }
 
+/**
+ * With user's points - high/equal/low chance to enroll (informational only, does not affect qualification)
+ * @nullable
+ */
+export type ProgramMatchPointsChance =
+  | (typeof ProgramMatchPointsChance)[keyof typeof ProgramMatchPointsChance]
+  | null;
+
+export const ProgramMatchPointsChance = {
+  high: "high",
+  equal: "equal",
+  low: "low",
+} as const;
+
 export interface ProgramMatch {
   program: UniversityProgram;
   /** Whether the student fully qualifies */
@@ -128,6 +178,21 @@ export interface ProgramMatch {
    * @nullable
    */
   meetsPointsRequirement?: boolean | null;
+  /**
+   * Whether student meets O-Level pass requirement
+   * @nullable
+   */
+  meetsOLevelRequirement?: boolean | null;
+  /**
+   * Whether student meets A-Level pass requirement
+   * @nullable
+   */
+  meetsALevelRequirement?: boolean | null;
+  /**
+   * With user's points - high/equal/low chance to enroll (informational only, does not affect qualification)
+   * @nullable
+   */
+  pointsChance?: ProgramMatchPointsChance;
 }
 
 export interface CareerRecommendation {
@@ -139,14 +204,37 @@ export interface CareerRecommendation {
   matchedPrograms: ProgramMatch[];
 }
 
+export interface RecommendationsResponse {
+  recommendations: CareerRecommendation[];
+  /** AI-generated personalized advice based on profile and DB programs */
+  aiAdvice?: string;
+  /** Programs AI recommended that exist in our database (cross-referenced) */
+  aiRecommendedPrograms?: AiRecommendedProgram[];
+}
+
 export interface CreateProgramRequest {
   schoolName: string;
   programName: string;
   /** @nullable */
   faculty?: string | null;
   requiredSubjects: string[];
+  /**
+   * Minimum number of required subjects needed (e.g. 2 = at least 2 of the listed). Null = all required.
+   * @nullable
+   */
+  minRequiredSubjects?: number | null;
   /** @nullable */
   minimumPoints?: number | null;
+  /**
+   * Minimum O-Level passes (default 5)
+   * @nullable
+   */
+  minOLevelPasses?: number | null;
+  /**
+   * Minimum A-Level passes (default 2)
+   * @nullable
+   */
+  minALevelPasses?: number | null;
   /** @nullable */
   duration?: string | null;
   /** @nullable */
@@ -159,6 +247,16 @@ export interface ProgramMatchRequest {
   subjects: string[];
   /** @nullable */
   cutOffPoints?: number | null;
+  /**
+   * Number of O-Level passes (minimum 5)
+   * @nullable
+   */
+  oLevelPasses?: number | null;
+  /**
+   * Number of A-Level passes (minimum 2)
+   * @nullable
+   */
+  aLevelPasses?: number | null;
   /** @nullable */
   careerCategory?: string | null;
 }

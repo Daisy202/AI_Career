@@ -6,14 +6,12 @@ import { Button } from "./ui-elements";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useCareerStore } from "@/store/use-career-store";
-import { AuthDialog } from "./auth-dialog";
 import { useLogoutUser } from "@workspace/api-client-react";
 
 export function Layout({ children }: { children: React.ReactNode }) {
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isAuthOpen, setIsAuthOpen] = useState(false);
-  const { user, setUser } = useCareerStore();
+  const { user, setUser, clearProfile } = useCareerStore();
   const logoutMutation = useLogoutUser();
 
   const navLinks = [
@@ -31,16 +29,17 @@ export function Layout({ children }: { children: React.ReactNode }) {
     logoutMutation.mutate(undefined, {
       onSuccess: () => {
         setUser(null);
+        clearProfile();
+        setLocation("/");
       }
     });
   };
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      <AuthDialog open={isAuthOpen} onOpenChange={setIsAuthOpen} />
       {/* Navbar */}
       <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-white/80 backdrop-blur-xl">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="w-full max-w-7xl mx-auto px-4 sm:px-5 lg:px-6">
           <div className="flex items-center justify-between h-20">
             {/* Logo */}
             <div className="flex-shrink-0">
@@ -54,9 +53,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
               </Link>
             </div>
 
-            {/* Desktop Navigation */}
+            {/* Desktop Navigation — signed-in users only */}
             <nav className="hidden md:flex items-center gap-1">
-              {navLinks.map((link) => {
+              {user && navLinks.map((link) => {
                 const isActive = location === link.href || (location.startsWith('/career') && link.href === '/recommendations');
                 return (
                   <Link 
@@ -78,9 +77,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
             {/* Desktop Actions */}
             <div className="hidden md:flex items-center gap-4">
+              {user && (
               <Link href="/feedback" className="text-sm font-semibold text-muted-foreground hover:text-primary transition-colors">
                 Feedback
               </Link>
+              )}
               {user ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -113,10 +114,19 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   </DropdownMenuContent>
                 </DropdownMenu>
               ) : (
-                <Button size="sm" className="rounded-full px-6" onClick={() => setIsAuthOpen(true)}>
-                  <User className="w-4 h-4 mr-2" />
-                  Sign In
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Link href="/login">
+                    <Button size="sm" variant="ghost" className="rounded-full px-4">
+                      Sign in
+                    </Button>
+                  </Link>
+                  <Link href="/signup">
+                    <Button size="sm" className="rounded-full px-6">
+                      <User className="w-4 h-4 mr-2" />
+                      Sign up
+                    </Button>
+                  </Link>
+                </div>
               )}
             </div>
 
@@ -136,7 +146,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         {isMobileMenuOpen && (
           <div className="md:hidden border-t border-border/50 bg-white absolute w-full left-0 shadow-2xl">
             <div className="px-4 pt-4 pb-6 space-y-2">
-              {navLinks.map((link) => {
+              {user && navLinks.map((link) => {
                 const isActive = location === link.href;
                 return (
                   <Link
@@ -153,24 +163,33 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   </Link>
                 );
               })}
-              <div className="h-px bg-border/50 my-4" />
-              <Link
-                href="/feedback"
-                onClick={() => setIsMobileMenuOpen(false)}
-                className="flex items-center px-4 py-4 rounded-xl text-base font-bold text-foreground hover:bg-muted"
-              >
-                <Star className="w-5 h-5 mr-3 text-muted-foreground" />
-                Provide Feedback
-              </Link>
+              {user && (
+                <>
+                  <div className="h-px bg-border/50 my-4" />
+                  <Link
+                    href="/feedback"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="flex items-center px-4 py-4 rounded-xl text-base font-bold text-foreground hover:bg-muted"
+                  >
+                    <Star className="w-5 h-5 mr-3 text-muted-foreground" />
+                    Provide Feedback
+                  </Link>
+                </>
+              )}
               <div className="px-4 pt-2">
                 {user ? (
                   <Button variant="outline" className="w-full" onClick={handleLogout}>
                     <LogOut className="w-4 h-4 mr-2" /> Logout
                   </Button>
                 ) : (
-                  <Button className="w-full" onClick={() => { setIsAuthOpen(true); setIsMobileMenuOpen(false); }}>
-                    Sign In
-                  </Button>
+                  <div className="flex flex-col gap-2">
+                    <Link href="/login" onClick={() => setIsMobileMenuOpen(false)}>
+                      <Button variant="outline" className="w-full">Sign in</Button>
+                    </Link>
+                    <Link href="/signup" onClick={() => setIsMobileMenuOpen(false)}>
+                      <Button className="w-full">Sign up</Button>
+                    </Link>
+                  </div>
                 )}
               </div>
             </div>
@@ -185,7 +204,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
       {/* Footer */}
       <footer className="border-t border-border/50 bg-white py-12 mt-auto">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-6">
+        <div className="w-full max-w-7xl mx-auto px-4 sm:px-5 lg:px-6 flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-2">
             <Compass className="h-5 w-5 text-primary" />
             <span className="font-display font-bold text-lg text-foreground">CareerGuideZW</span>

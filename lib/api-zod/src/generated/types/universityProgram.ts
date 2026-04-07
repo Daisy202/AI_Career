@@ -15,10 +15,25 @@ export interface UniversityProgram {
   /** Required A-Level subjects */
   requiredSubjects: string[];
   /**
+   * Minimum number of required subjects needed (e.g. 2 = at least 2 of the listed). Null = all required.
+   * @nullable
+   */
+  minRequiredSubjects?: number | null;
+  /**
    * Minimum ZIMSEC cut-off points required
    * @nullable
    */
   minimumPoints?: number | null;
+  /**
+   * Minimum O-Level passes required (default 5)
+   * @nullable
+   */
+  minOLevelPasses?: number | null;
+  /**
+   * Minimum A-Level passes required (default 2)
+   * @nullable
+   */
+  minALevelPasses?: number | null;
   /**
    * Duration of program e.g. 4 years
    * @nullable

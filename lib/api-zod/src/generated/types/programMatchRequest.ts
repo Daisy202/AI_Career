@@ -10,6 +10,16 @@ export interface ProgramMatchRequest {
   subjects: string[];
   /** @nullable */
   cutOffPoints?: number | null;
+  /**
+   * Number of O-Level passes (minimum 5)
+   * @nullable
+   */
+  oLevelPasses?: number | null;
+  /**
+   * Number of A-Level passes (minimum 2)
+   * @nullable
+   */
+  aLevelPasses?: number | null;
   /** @nullable */
   careerCategory?: string | null;
 }

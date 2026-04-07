@@ -20,7 +20,6 @@ import type {
   AuthResponse,
   Career,
   CareerInsights,
-  CareerRecommendation,
   ChatRequest,
   ChatResponse,
   CreateProgramRequest,
@@ -36,6 +35,7 @@ import type {
   MessageResponse,
   ProgramMatch,
   ProgramMatchRequest,
+  RecommendationsResponse,
   RegisterRequest,
   StudentProfile,
   UniversityProgram,
@@ -539,8 +539,8 @@ export const getGetRecommendationsUrl = () => {
 export const getRecommendations = async (
   studentProfile: StudentProfile,
   options?: RequestInit,
-): Promise<CareerRecommendation[]> => {
-  return customFetch<CareerRecommendation[]>(getGetRecommendationsUrl(), {
+): Promise<RecommendationsResponse> => {
+  return customFetch<RecommendationsResponse>(getGetRecommendationsUrl(), {
     ...options,
     method: "POST",
     headers: { "Content-Type": "application/json", ...options?.headers },

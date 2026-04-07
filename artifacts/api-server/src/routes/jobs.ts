@@ -5,6 +5,7 @@ import {
   GetJobsQueryParams,
   GetJobsResponse,
 } from "@workspace/api-zod";
+import { requireAuth } from "../lib/auth.js";
 
 const router: IRouter = Router();
 
@@ -62,7 +63,7 @@ const MOCK_SKILLS: Record<string, string[]> = {
   "Electrical Engineer": ["Circuit Design", "AutoCAD Electrical", "Power Systems", "PLC Programming", "Safety Standards"],
 };
 
-router.get("/insights", async (req, res): Promise<void> => {
+router.get("/insights", requireAuth, async (req, res): Promise<void> => {
   const params = GetCareerInsightsQueryParams.safeParse(req.query);
   if (!params.success) {
     res.status(400).json({ error: "Career query param required" });
@@ -89,7 +90,7 @@ router.get("/insights", async (req, res): Promise<void> => {
   );
 });
 
-router.get("/jobs", async (req, res): Promise<void> => {
+router.get("/jobs", requireAuth, async (req, res): Promise<void> => {
   const params = GetJobsQueryParams.safeParse(req.query);
   if (!params.success) {
     res.status(400).json({ error: "Query param required" });

@@ -86,76 +86,142 @@ export const GetCareersResponse = zod.array(GetCareersResponseItem);
 export const GetRecommendationsBody = zod.object({
   interests: zod.array(zod.string()),
   strengths: zod.array(zod.string()),
-  subjects: zod.array(zod.string()),
+  subjects: zod
+    .array(zod.string())
+    .describe("A-Level subjects the student has passed"),
+  oLevelSubjects: zod
+    .array(zod.string())
+    .optional()
+    .describe("O-Level subjects the student has passed"),
   personalityType: zod.string().nullish(),
   hobbies: zod.array(zod.string()).optional(),
   cutOffPoints: zod
     .number()
     .nullish()
     .describe("Student's ZIMSEC cut-off points (optional)"),
-});
-
-export const GetRecommendationsResponseItem = zod.object({
-  career: zod.object({
-    id: zod.number(),
-    name: zod.string(),
-    description: zod.string(),
-    category: zod.string(),
-    requiredSkills: zod.array(zod.string()),
-    aLevelSubjects: zod.array(zod.string()),
-    universityPrograms: zod.array(zod.string()),
-    averageSalary: zod.string(),
-    jobOutlook: zod.string(),
-  }),
-  matchPercentage: zod.number(),
-  matchReasons: zod.array(zod.string()),
-  demandLevel: zod.enum(["High", "Medium", "Low"]),
-  matchedPrograms: zod
-    .array(
-      zod.object({
-        program: zod.object({
-          id: zod.number(),
-          schoolName: zod.string(),
-          programName: zod.string(),
-          faculty: zod.string().nullish(),
-          requiredSubjects: zod
-            .array(zod.string())
-            .describe("Required A-Level subjects"),
-          minimumPoints: zod
-            .number()
-            .nullish()
-            .describe("Minimum ZIMSEC cut-off points required"),
-          duration: zod
-            .string()
-            .nullish()
-            .describe("Duration of program e.g. 4 years"),
-          description: zod.string().nullish(),
-          careerCategory: zod
-            .string()
-            .nullish()
-            .describe("Related career category"),
-        }),
-        qualifies: zod
-          .boolean()
-          .describe("Whether the student fully qualifies"),
-        missingSubjects: zod
-          .array(zod.string())
-          .describe("Subjects the student is missing"),
-        meetsPointsRequirement: zod
-          .boolean()
-          .nullish()
-          .describe(
-            "Whether student meets the cut-off points (null if no points provided or required)",
-          ),
-      }),
-    )
+  oLevelPasses: zod
+    .number()
+    .nullish()
     .describe(
-      "University programs the student qualifies for based on their subjects",
+      "Number of O-Level passes (minimum 5 required for most programs)",
+    ),
+  aLevelPasses: zod
+    .number()
+    .nullish()
+    .describe(
+      "Number of A-Level passes (minimum 2 required for most programs)",
     ),
 });
-export const GetRecommendationsResponse = zod.array(
-  GetRecommendationsResponseItem,
-);
+
+export const GetRecommendationsResponse = zod.object({
+  recommendations: zod.array(
+    zod.object({
+      career: zod.object({
+        id: zod.number(),
+        name: zod.string(),
+        description: zod.string(),
+        category: zod.string(),
+        requiredSkills: zod.array(zod.string()),
+        aLevelSubjects: zod.array(zod.string()),
+        universityPrograms: zod.array(zod.string()),
+        averageSalary: zod.string(),
+        jobOutlook: zod.string(),
+      }),
+      matchPercentage: zod.number(),
+      matchReasons: zod.array(zod.string()),
+      demandLevel: zod.enum(["High", "Medium", "Low"]),
+      matchedPrograms: zod
+        .array(
+          zod.object({
+            program: zod.object({
+              id: zod.number(),
+              schoolName: zod.string(),
+              programName: zod.string(),
+              faculty: zod.string().nullish(),
+              requiredSubjects: zod
+                .array(zod.string())
+                .describe("Required A-Level subjects"),
+              minRequiredSubjects: zod
+                .number()
+                .nullish()
+                .describe(
+                  "Minimum number of required subjects needed (e.g. 2 = at least 2 of the listed). Null = all required.",
+                ),
+              minimumPoints: zod
+                .number()
+                .nullish()
+                .describe("Minimum ZIMSEC cut-off points required"),
+              minOLevelPasses: zod
+                .number()
+                .nullish()
+                .describe("Minimum O-Level passes required (default 5)"),
+              minALevelPasses: zod
+                .number()
+                .nullish()
+                .describe("Minimum A-Level passes required (default 2)"),
+              duration: zod
+                .string()
+                .nullish()
+                .describe("Duration of program e.g. 4 years"),
+              description: zod.string().nullish(),
+              careerCategory: zod
+                .string()
+                .nullish()
+                .describe("Related career category"),
+            }),
+            qualifies: zod
+              .boolean()
+              .describe("Whether the student fully qualifies"),
+            missingSubjects: zod
+              .array(zod.string())
+              .describe("Subjects the student is missing"),
+            meetsPointsRequirement: zod
+              .boolean()
+              .nullish()
+              .describe(
+                "Whether student meets the cut-off points (null if no points provided or required)",
+              ),
+            meetsOLevelRequirement: zod
+              .boolean()
+              .nullish()
+              .describe("Whether student meets O-Level pass requirement"),
+            meetsALevelRequirement: zod
+              .boolean()
+              .nullish()
+              .describe("Whether student meets A-Level pass requirement"),
+            pointsChance: zod
+              .enum(["high", "equal", "low"])
+              .nullish()
+              .describe(
+                "With user's points - high\/equal\/low chance to enroll (informational only, does not affect qualification)",
+              ),
+          }),
+        )
+        .describe(
+          "University programs the student qualifies for based on their subjects",
+        ),
+    }),
+  ),
+  aiAdvice: zod
+    .string()
+    .optional()
+    .describe(
+      "AI-generated personalized advice based on profile and DB programs",
+    ),
+  aiRecommendedPrograms: zod
+    .array(
+      zod
+        .object({
+          programName: zod.string(),
+          schoolName: zod.string(),
+        })
+        .describe("Program AI recommended, verified against DB"),
+    )
+    .optional()
+    .describe(
+      "Programs AI recommended that exist in our database (cross-referenced)",
+    ),
+});
 
 /**
  * @summary Get detailed information about a specific career
@@ -192,10 +258,24 @@ export const GetProgramsResponseItem = zod.object({
   requiredSubjects: zod
     .array(zod.string())
     .describe("Required A-Level subjects"),
+  minRequiredSubjects: zod
+    .number()
+    .nullish()
+    .describe(
+      "Minimum number of required subjects needed (e.g. 2 = at least 2 of the listed). Null = all required.",
+    ),
   minimumPoints: zod
     .number()
     .nullish()
     .describe("Minimum ZIMSEC cut-off points required"),
+  minOLevelPasses: zod
+    .number()
+    .nullish()
+    .describe("Minimum O-Level passes required (default 5)"),
+  minALevelPasses: zod
+    .number()
+    .nullish()
+    .describe("Minimum A-Level passes required (default 2)"),
   duration: zod.string().nullish().describe("Duration of program e.g. 4 years"),
   description: zod.string().nullish(),
   careerCategory: zod.string().nullish().describe("Related career category"),
@@ -210,7 +290,21 @@ export const CreateProgramBody = zod.object({
   programName: zod.string(),
   faculty: zod.string().nullish(),
   requiredSubjects: zod.array(zod.string()),
+  minRequiredSubjects: zod
+    .number()
+    .nullish()
+    .describe(
+      "Minimum number of required subjects needed (e.g. 2 = at least 2 of the listed). Null = all required.",
+    ),
   minimumPoints: zod.number().nullish(),
+  minOLevelPasses: zod
+    .number()
+    .nullish()
+    .describe("Minimum O-Level passes (default 5)"),
+  minALevelPasses: zod
+    .number()
+    .nullish()
+    .describe("Minimum A-Level passes (default 2)"),
   duration: zod.string().nullish(),
   description: zod.string().nullish(),
   careerCategory: zod.string().nullish(),
@@ -222,6 +316,14 @@ export const CreateProgramBody = zod.object({
 export const MatchProgramsBody = zod.object({
   subjects: zod.array(zod.string()),
   cutOffPoints: zod.number().nullish(),
+  oLevelPasses: zod
+    .number()
+    .nullish()
+    .describe("Number of O-Level passes (minimum 5)"),
+  aLevelPasses: zod
+    .number()
+    .nullish()
+    .describe("Number of A-Level passes (minimum 2)"),
   careerCategory: zod.string().nullish(),
 });
 
@@ -234,10 +336,24 @@ export const MatchProgramsResponseItem = zod.object({
     requiredSubjects: zod
       .array(zod.string())
       .describe("Required A-Level subjects"),
+    minRequiredSubjects: zod
+      .number()
+      .nullish()
+      .describe(
+        "Minimum number of required subjects needed (e.g. 2 = at least 2 of the listed). Null = all required.",
+      ),
     minimumPoints: zod
       .number()
       .nullish()
       .describe("Minimum ZIMSEC cut-off points required"),
+    minOLevelPasses: zod
+      .number()
+      .nullish()
+      .describe("Minimum O-Level passes required (default 5)"),
+    minALevelPasses: zod
+      .number()
+      .nullish()
+      .describe("Minimum A-Level passes required (default 2)"),
     duration: zod
       .string()
       .nullish()
@@ -255,6 +371,20 @@ export const MatchProgramsResponseItem = zod.object({
     .describe(
       "Whether student meets the cut-off points (null if no points provided or required)",
     ),
+  meetsOLevelRequirement: zod
+    .boolean()
+    .nullish()
+    .describe("Whether student meets O-Level pass requirement"),
+  meetsALevelRequirement: zod
+    .boolean()
+    .nullish()
+    .describe("Whether student meets A-Level pass requirement"),
+  pointsChance: zod
+    .enum(["high", "equal", "low"])
+    .nullish()
+    .describe(
+      "With user's points - high\/equal\/low chance to enroll (informational only, does not affect qualification)",
+    ),
 });
 export const MatchProgramsResponse = zod.array(MatchProgramsResponseItem);
 
@@ -269,7 +399,21 @@ export const UploadProgramsBody = zod.object({
         programName: zod.string(),
         faculty: zod.string().nullish(),
         requiredSubjects: zod.array(zod.string()),
+        minRequiredSubjects: zod
+          .number()
+          .nullish()
+          .describe(
+            "Minimum number of required subjects needed (e.g. 2 = at least 2 of the listed). Null = all required.",
+          ),
         minimumPoints: zod.number().nullish(),
+        minOLevelPasses: zod
+          .number()
+          .nullish()
+          .describe("Minimum O-Level passes (default 5)"),
+        minALevelPasses: zod
+          .number()
+          .nullish()
+          .describe("Minimum A-Level passes (default 2)"),
         duration: zod.string().nullish(),
         description: zod.string().nullish(),
         careerCategory: zod.string().nullish(),
@@ -300,7 +444,21 @@ export const UpdateProgramBody = zod.object({
   programName: zod.string(),
   faculty: zod.string().nullish(),
   requiredSubjects: zod.array(zod.string()),
+  minRequiredSubjects: zod
+    .number()
+    .nullish()
+    .describe(
+      "Minimum number of required subjects needed (e.g. 2 = at least 2 of the listed). Null = all required.",
+    ),
   minimumPoints: zod.number().nullish(),
+  minOLevelPasses: zod
+    .number()
+    .nullish()
+    .describe("Minimum O-Level passes (default 5)"),
+  minALevelPasses: zod
+    .number()
+    .nullish()
+    .describe("Minimum A-Level passes (default 2)"),
   duration: zod.string().nullish(),
   description: zod.string().nullish(),
   careerCategory: zod.string().nullish(),
@@ -314,10 +472,24 @@ export const UpdateProgramResponse = zod.object({
   requiredSubjects: zod
     .array(zod.string())
     .describe("Required A-Level subjects"),
+  minRequiredSubjects: zod
+    .number()
+    .nullish()
+    .describe(
+      "Minimum number of required subjects needed (e.g. 2 = at least 2 of the listed). Null = all required.",
+    ),
   minimumPoints: zod
     .number()
     .nullish()
     .describe("Minimum ZIMSEC cut-off points required"),
+  minOLevelPasses: zod
+    .number()
+    .nullish()
+    .describe("Minimum O-Level passes required (default 5)"),
+  minALevelPasses: zod
+    .number()
+    .nullish()
+    .describe("Minimum A-Level passes required (default 2)"),
   duration: zod.string().nullish().describe("Duration of program e.g. 4 years"),
   description: zod.string().nullish(),
   careerCategory: zod.string().nullish().describe("Related career category"),
@@ -383,13 +555,31 @@ export const SendChatMessageBody = zod.object({
     .object({
       interests: zod.array(zod.string()),
       strengths: zod.array(zod.string()),
-      subjects: zod.array(zod.string()),
+      subjects: zod
+        .array(zod.string())
+        .describe("A-Level subjects the student has passed"),
+      oLevelSubjects: zod
+        .array(zod.string())
+        .optional()
+        .describe("O-Level subjects the student has passed"),
       personalityType: zod.string().nullish(),
       hobbies: zod.array(zod.string()).optional(),
       cutOffPoints: zod
         .number()
         .nullish()
         .describe("Student's ZIMSEC cut-off points (optional)"),
+      oLevelPasses: zod
+        .number()
+        .nullish()
+        .describe(
+          "Number of O-Level passes (minimum 5 required for most programs)",
+        ),
+      aLevelPasses: zod
+        .number()
+        .nullish()
+        .describe(
+          "Number of A-Level passes (minimum 2 required for most programs)",
+        ),
     })
     .optional(),
 });

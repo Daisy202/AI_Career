@@ -9,7 +9,10 @@
 export interface StudentProfile {
   interests: string[];
   strengths: string[];
+  /** A-Level subjects the student has passed */
   subjects: string[];
+  /** O-Level subjects the student has passed */
+  oLevelSubjects?: string[];
   /** @nullable */
   personalityType?: string | null;
   hobbies?: string[];
@@ -18,4 +21,14 @@ export interface StudentProfile {
    * @nullable
    */
   cutOffPoints?: number | null;
+  /**
+   * Number of O-Level passes (minimum 5 required for most programs)
+   * @nullable
+   */
+  oLevelPasses?: number | null;
+  /**
+   * Number of A-Level passes (minimum 2 required for most programs)
+   * @nullable
+   */
+  aLevelPasses?: number | null;
 }

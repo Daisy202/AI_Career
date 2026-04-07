@@ -57,7 +57,7 @@ export default function FeedbackPage() {
   }
 
   return (
-    <div className="min-h-screen bg-muted/20 py-12 px-4">
+    <div className="min-h-screen bg-muted/20 py-12 px-4 sm:px-5 lg:px-6">
       <div className="max-w-2xl mx-auto">
         <div className="text-center mb-10">
           <div className="inline-flex items-center justify-center p-4 bg-primary/10 rounded-full mb-6">
