@@ -16,9 +16,13 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     const Comp = asChild ? Slot : "button";
     
     const variants = {
-      default: "bg-gradient-to-r from-primary to-primary/90 text-primary-foreground shadow-lg shadow-primary/25 hover:shadow-xl hover:-translate-y-0.5 border border-primary/20",
-      accent: "bg-gradient-to-r from-accent to-amber-400 text-accent-foreground shadow-lg shadow-accent/25 hover:shadow-xl hover:-translate-y-0.5 border border-accent/20",
-      secondary: "bg-gradient-to-r from-secondary to-teal-400 text-secondary-foreground shadow-lg shadow-secondary/25 hover:shadow-xl hover:-translate-y-0.5 border border-secondary/20",
+      /* Solid bg-* first so label stays readable if linear-gradient fails to paint */
+      default:
+        "bg-primary bg-gradient-to-r from-primary to-primary/90 text-primary-foreground shadow-lg shadow-primary/25 hover:shadow-xl hover:-translate-y-0.5 border border-primary/20",
+      accent:
+        "bg-accent bg-gradient-to-r from-accent to-amber-400 text-accent-foreground shadow-lg shadow-accent/25 hover:shadow-xl hover:-translate-y-0.5 border border-accent/20",
+      secondary:
+        "bg-secondary bg-gradient-to-r from-secondary to-teal-400 text-secondary-foreground shadow-lg shadow-secondary/25 hover:shadow-xl hover:-translate-y-0.5 border border-secondary/20",
       outline: "border-2 border-border bg-background hover:bg-muted hover:border-primary/50 text-foreground",
       ghost: "hover:bg-primary/10 hover:text-primary text-foreground",
     };

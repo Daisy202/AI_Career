@@ -3,7 +3,7 @@
  * and programs in our database (schools, diplomas, degrees).
  * AI response is cross-referenced with DB to display only verified programs.
  */
-
+import { sanitizeCutoffMentionsInText, ZIMSEC_GRADING_EXPLANATION } from "./zimsecPoints.js";
 const baseUrl = process.env.OLLAMA_BASE_URL || "http://localhost:11434";
 const model = process.env.OLLAMA_MODEL || "gemma3:1b";
 
@@ -85,6 +85,8 @@ export async function generateCareerAdvice(
 
   const prompt = `You are a career advisor for pre-university students in Zimbabwe. Based on this student profile and the programs in our database, give SHORT personalized advice (max 4-5 sentences). Be specific about schools and programs we have.
 
+${ZIMSEC_GRADING_EXPLANATION}
+
 STUDENT PROFILE:
 - Interests: ${profile.interests.join(", ") || "Not specified"}
 - Strengths: ${profile.strengths.join(", ") || "Not specified"}
@@ -119,7 +121,7 @@ Format program names in bold using **Program Name at School** (e.g. **Diploma in
     }
 
     const data = (await response.json()) as { response?: string };
-    const advice = (data.response || "").trim();
+    const advice = sanitizeCutoffMentionsInText((data.response || "").trim());
     const recommendedPrograms = extractProgramsFromAiText(advice, allDbPrograms);
 
     return { advice, recommendedPrograms };

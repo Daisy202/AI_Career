@@ -47,7 +47,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 <div className="bg-gradient-to-br from-primary to-secondary p-2 rounded-xl group-hover:shadow-lg transition-all">
                   <Compass className="h-6 w-6 text-white" />
                 </div>
-                <span className="font-display font-bold text-2xl tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary to-foreground">
+                <span className="font-display font-bold text-2xl tracking-tight text-foreground">
                   CareerGuide<span className="text-accent">ZW</span>
                 </span>
               </Link>

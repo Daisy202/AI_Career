@@ -11,7 +11,7 @@ const API = "/api";
 export default function ChatPage() {
   const { user, profile, setProfile, clearProfile } = useCareerStore();
   const [messages, setMessages] = useState<ChatMessage[]>([
-    { role: "assistant", content: "Hi! I'm your AI Career Advisor. Ask me about careers, universities, or study requirements in Zimbabwe." }
+    { role: "assistant", content: "Hi! I'm your AI Career Advisor for Zimbabwe. Ask about careers, A-Level subjects, or university requirements — I use our program database. ZIMSEC: each subject is 1–5 points; your total cut-off is 1–15 (lower is better)." }
   ]);
   const [input, setInput] = useState("");
   const [sessionId, setSessionId] = useState<number | null>(null);
@@ -47,7 +47,7 @@ export default function ChatPage() {
   useEffect(() => { scrollToBottom(); }, [messages, isPending]);
 
   const startNewChat = () => {
-    setMessages([{ role: "assistant", content: "Hi! I'm your AI Career Advisor. Ask me about careers, universities, or study requirements in Zimbabwe." }]);
+    setMessages([{ role: "assistant", content: "Hi! I'm your AI Career Advisor for Zimbabwe. Ask about careers, A-Level subjects, or university requirements — I use our program database. ZIMSEC: each subject is 1–5 points; your total cut-off is 1–15 (lower is better)." }]);
     setSessionId(null);
     setShowSessions(false);
   };

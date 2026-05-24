@@ -76,7 +76,7 @@ export default function RecommendationsPage() {
             </p>
             {profile?.cutOffPoints != null && (
               <p className="text-base font-semibold text-primary mt-2">
-                Your cut-off points: <strong>{profile.cutOffPoints}</strong> — used for chance analysis on programs with points requirements
+                Your total cut-off: <strong>{profile.cutOffPoints}</strong> (1–15; each A-Level subject is 1–5 pts, lower total is better) — chance analysis only
               </p>
             )}
           </div>

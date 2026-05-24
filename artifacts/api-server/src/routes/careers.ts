@@ -13,6 +13,11 @@ import { CAREERS, recommendCareers } from "../lib/careerData.js";
 import { generateCareerAdvice } from "../lib/aiAdvice.js";
 import { fileLogger } from "../lib/fileLogger.js";
 import { requireAuth } from "../lib/auth.js";
+import {
+  calculatePointsChance,
+  meetsCutoffRequirement,
+  normalizeZimsecCutoff,
+} from "../lib/zimsecPoints.js";
 
 const router: IRouter = Router();
 
@@ -69,7 +74,7 @@ router.post("/recommend", requireAuth, async (req, res): Promise<void> => {
     aLevelPasses: parsed.data.aLevelPasses ?? null,
   });
   const studentSubjectsLower = (parsed.data.subjects ?? []).map((s: string) => String(s).toLowerCase().trim());
-  const cutOffPoints = parsed.data.cutOffPoints ?? null;
+  const cutOffPoints = normalizeZimsecCutoff(parsed.data.cutOffPoints ?? undefined);
   const oLevelPasses = parsed.data.oLevelPasses ?? null;
   const aLevelPasses = parsed.data.aLevelPasses ?? null;
 
@@ -102,11 +107,9 @@ router.post("/recommend", requireAuth, async (req, res): Promise<void> => {
 
       let meetsPointsRequirement: boolean | null = null;
       let pointsChance: "high" | "equal" | "low" | null = null;
-      if (cutOffPoints !== null && program.minimumPoints != null) {
-        meetsPointsRequirement = cutOffPoints >= program.minimumPoints;
-        if (cutOffPoints > program.minimumPoints + 2) pointsChance = "high";
-        else if (cutOffPoints >= program.minimumPoints) pointsChance = "equal";
-        else pointsChance = "low";
+      if (cutOffPoints != null && program.minimumPoints != null) {
+        meetsPointsRequirement = meetsCutoffRequirement(cutOffPoints, program.minimumPoints);
+        pointsChance = calculatePointsChance(cutOffPoints, program.minimumPoints);
       }
 
       const minO = program.minOLevelPasses ?? 5;

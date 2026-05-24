@@ -2,12 +2,21 @@ import { useState, useEffect } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { ShieldAlert, Plus, Upload, BarChart3, MessageSquare, FileText } from "lucide-react";
+import { ShieldAlert, Plus, Upload, BarChart3, MessageSquare, FileText, Pencil, Trash2 } from "lucide-react";
+import type { UniversityProgram } from "@workspace/api-client-react";
 import { Button, Card, Input, Label, Textarea, Badge } from "@/components/ui-elements";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useGetPrograms, useCreateProgram, useUploadPrograms } from "@workspace/api-client-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { useGetPrograms, useCreateProgram, useUploadPrograms, useUpdateProgram, useDeleteProgram } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
 import { useCareerStore } from "@/store/use-career-store";
 
@@ -17,7 +26,7 @@ const programSchema = z.object({
   faculty: z.string().optional(),
   requiredSubjects: z.string().min(1, "At least one subject is required"), // comma separated string for form
   minRequiredSubjects: z.coerce.number().min(1).optional().nullable(),
-  minimumPoints: z.coerce.number().optional().nullable(),
+  minimumPoints: z.coerce.number().min(1).max(15).optional().nullable(),
   minOLevelPasses: z.coerce.number().min(0).max(10).optional().nullable(),
   minALevelPasses: z.coerce.number().min(0).max(5).optional().nullable(),
   duration: z.string().optional(),
@@ -34,9 +43,12 @@ export default function AdminPage() {
   const { toast } = useToast();
   const user = useCareerStore(s => s.user);
   const [uploadData, setUploadData] = useState("");
+  const [editingProgram, setEditingProgram] = useState<UniversityProgram | null>(null);
   
   const { data: programs, refetch } = useGetPrograms();
   const createMutation = useCreateProgram();
+  const updateMutation = useUpdateProgram();
+  const deleteMutation = useDeleteProgram();
   const uploadMutation = useUploadPrograms();
 
   const [stats, setStats] = useState<{ totalRequests: number; avgResponseTimeMs: number; errorCount: number; chatRequests: number; feedbackCount: number; newChatSessions: number; periodHours: number } | null>(null);
@@ -80,6 +92,48 @@ export default function AdminPage() {
     }
   });
 
+  const editForm = useForm<z.infer<typeof programSchema>>({
+    resolver: zodResolver(programSchema),
+    defaultValues: {
+      schoolName: "", programName: "", faculty: "", requiredSubjects: "",
+      minRequiredSubjects: null, minimumPoints: null, minOLevelPasses: 5, minALevelPasses: 2, duration: "", description: "", careerCategory: ""
+    }
+  });
+
+  const openEdit = (p: UniversityProgram) => {
+    setEditingProgram(p);
+    editForm.reset({
+      schoolName: p.schoolName,
+      programName: p.programName,
+      faculty: p.faculty ?? "",
+      requiredSubjects: p.requiredSubjects.join(", "),
+      minRequiredSubjects: p.minRequiredSubjects ?? null,
+      minimumPoints: p.minimumPoints ?? null,
+      minOLevelPasses: p.minOLevelPasses ?? 5,
+      minALevelPasses: p.minALevelPasses ?? 2,
+      duration: p.duration ?? "",
+      description: p.description ?? "",
+      careerCategory: p.careerCategory ?? "",
+    });
+  };
+
+  const buildProgramPayload = (data: z.infer<typeof programSchema>) => {
+    const subjectsArray = data.requiredSubjects.split(',').map(s => s.trim()).filter(Boolean);
+    return {
+      schoolName: data.schoolName,
+      programName: data.programName,
+      faculty: data.faculty || null,
+      requiredSubjects: subjectsArray,
+      minRequiredSubjects: data.minRequiredSubjects ?? null,
+      minimumPoints: data.minimumPoints ?? null,
+      minOLevelPasses: data.minOLevelPasses ?? 5,
+      minALevelPasses: data.minALevelPasses ?? 2,
+      duration: data.duration || null,
+      description: data.description || null,
+      careerCategory: data.careerCategory || null,
+    };
+  };
+
   if (!user || user.role !== 'admin') {
     return (
       <div className="min-h-[70vh] flex flex-col items-center justify-center p-4 text-center">
@@ -90,23 +144,40 @@ export default function AdminPage() {
     );
   }
 
+  const onUpdateProgram = (data: z.infer<typeof programSchema>) => {
+    if (!editingProgram) return;
+    updateMutation.mutate({
+      programId: editingProgram.id,
+      data: buildProgramPayload(data),
+    }, {
+      onSuccess: () => {
+        toast({ title: "Updated", description: "Program updated successfully." });
+        setEditingProgram(null);
+        refetch();
+      },
+      onError: (err: { data?: { error?: string } }) => {
+        toast({ title: "Error", description: err.data?.error || "Failed to update program", variant: "destructive" });
+      },
+    });
+  };
+
+  const onDeleteProgram = (p: UniversityProgram) => {
+    if (!window.confirm(`Delete "${p.programName}" at ${p.schoolName}?`)) return;
+    deleteMutation.mutate({ programId: p.id }, {
+      onSuccess: () => {
+        toast({ title: "Deleted", description: "Program removed." });
+        if (editingProgram?.id === p.id) setEditingProgram(null);
+        refetch();
+      },
+      onError: (err: { data?: { error?: string } }) => {
+        toast({ title: "Error", description: err.data?.error || "Failed to delete program", variant: "destructive" });
+      },
+    });
+  };
+
   const onAddProgram = (data: z.infer<typeof programSchema>) => {
-    const subjectsArray = data.requiredSubjects.split(',').map(s => s.trim()).filter(Boolean);
-    
     createMutation.mutate({
-      data: {
-        schoolName: data.schoolName,
-        programName: data.programName,
-        faculty: data.faculty || null,
-        requiredSubjects: subjectsArray,
-        minRequiredSubjects: data.minRequiredSubjects ?? null,
-        minimumPoints: data.minimumPoints ?? null,
-        minOLevelPasses: data.minOLevelPasses ?? 5,
-        minALevelPasses: data.minALevelPasses ?? 2,
-        duration: data.duration || null,
-        description: data.description || null,
-        careerCategory: data.careerCategory || null,
-      }
+      data: buildProgramPayload(data),
     }, {
       onSuccess: () => {
         toast({ title: "Success", description: "Program created successfully." });
@@ -200,6 +271,7 @@ export default function AdminPage() {
                     <TableHead>Cut-off</TableHead>
                     <TableHead>O/A Level</TableHead>
                     <TableHead>Category</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -212,18 +284,117 @@ export default function AdminPage() {
                           {p.requiredSubjects.map((s, i) => <Badge key={i} variant="outline" className="text-[10px]">{s}</Badge>)}
                         </div>
                       </TableCell>
-                      <TableCell>{p.minimumPoints || '-'}</TableCell>
+                      <TableCell>{p.minimumPoints ?? '—'}</TableCell>
                       <TableCell className="text-xs">{p.minOLevelPasses ?? 5}O / {p.minALevelPasses ?? 2}A</TableCell>
                       <TableCell>{p.careerCategory}</TableCell>
+                      <TableCell className="text-right space-x-1">
+                        <Button type="button" variant="outline" size="sm" onClick={() => openEdit(p)} aria-label="Edit program">
+                          <Pencil className="w-3.5 h-3.5" />
+                        </Button>
+                        <Button type="button" variant="outline" size="sm" onClick={() => onDeleteProgram(p)} disabled={deleteMutation.isPending} aria-label="Delete program">
+                          <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   )) : (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center text-muted-foreground h-32">No programs available. Add some data.</TableCell>
+                      <TableCell colSpan={7} className="text-center text-muted-foreground h-32">No programs available. Add some data.</TableCell>
                     </TableRow>
                   )}
                 </TableBody>
               </Table>
             </Card>
+
+            <Dialog
+              open={editingProgram != null}
+              onOpenChange={(open) => {
+                if (!open) setEditingProgram(null);
+              }}
+            >
+              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle>
+                    Edit program{editingProgram ? ` #${editingProgram.id}` : ""}
+                  </DialogTitle>
+                  <DialogDescription>
+                    {editingProgram
+                      ? `${editingProgram.programName} · ${editingProgram.schoolName}`
+                      : "Update course details"}
+                  </DialogDescription>
+                </DialogHeader>
+                <form
+                  id="edit-program-form"
+                  onSubmit={editForm.handleSubmit(onUpdateProgram)}
+                  className="space-y-4"
+                >
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    <div className="space-y-2 sm:col-span-2">
+                      <Label>School Name</Label>
+                      <Input {...editForm.register("schoolName")} />
+                    </div>
+                    <div className="space-y-2 sm:col-span-2">
+                      <Label>Program Name</Label>
+                      <Input {...editForm.register("programName")} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Faculty</Label>
+                      <Input {...editForm.register("faculty")} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Career Category</Label>
+                      <Controller
+                        name="careerCategory"
+                        control={editForm.control}
+                        render={({ field }) => (
+                          <Select onValueChange={field.onChange} value={field.value || undefined}>
+                            <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
+                            <SelectContent>
+                              {careerCategories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        )}
+                      />
+                    </div>
+                    <div className="space-y-2 sm:col-span-2">
+                      <Label>Required Subjects (comma-separated)</Label>
+                      <Input {...editForm.register("requiredSubjects")} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Min of Required</Label>
+                      <Input type="number" min={1} {...editForm.register("minRequiredSubjects")} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Max cut-off (1–15)</Label>
+                      <Input type="number" min={1} max={15} {...editForm.register("minimumPoints")} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Min O-Level passes</Label>
+                      <Input type="number" min={0} max={10} {...editForm.register("minOLevelPasses")} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Min A-Level passes</Label>
+                      <Input type="number" min={0} max={5} {...editForm.register("minALevelPasses")} />
+                    </div>
+                    <div className="space-y-2 sm:col-span-2">
+                      <Label>Duration</Label>
+                      <Input {...editForm.register("duration")} placeholder="e.g. 4 years" />
+                    </div>
+                    <div className="space-y-2 sm:col-span-2">
+                      <Label>Description</Label>
+                      <Textarea {...editForm.register("description")} rows={3} />
+                    </div>
+                  </div>
+                </form>
+                <DialogFooter className="gap-2 sm:gap-0">
+                  <Button type="button" variant="outline" onClick={() => setEditingProgram(null)}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" form="edit-program-form" disabled={updateMutation.isPending}>
+                    Save changes
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </TabsContent>
 
           <TabsContent value="add">
@@ -270,8 +441,9 @@ export default function AdminPage() {
                     <p className="text-xs text-muted-foreground">Leave empty to require all listed subjects</p>
                   </div>
                   <div className="space-y-2">
-                    <Label>Minimum Points (Optional)</Label>
-                    <Input type="number" {...form.register("minimumPoints")} />
+                    <Label>Max cut-off points (1–15, optional)</Label>
+                    <Input type="number" min={1} max={15} {...form.register("minimumPoints")} />
+                    <p className="text-xs text-muted-foreground">ZIMSEC scale: lower student points is better</p>
                   </div>
                   <div className="space-y-2">
                     <Label>Min O-Level Passes (default 5)</Label>

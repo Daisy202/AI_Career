@@ -1,0 +1,110 @@
+AICareer-System — Changed Files
+Generated: 2026-05-22
+
+This list includes all files currently modified or added in the working tree
+(program admin, ZIMSEC cut-offs, universities DB, hybrid AI chat, UI updates).
+
+================================================================================
+NEW FILES (6)
+================================================================================
+
+artifacts/api-server/src/lib/zimsecPoints.ts
+  ZIMSEC scoring helpers (1–5 per subject, 1–15 total), normalization, sanitization
+
+artifacts/api-server/src/lib/universities.ts
+  Universities table loader, acronym resolution, auto-seed on startup
+
+artifacts/api-server/src/lib/programValidation.ts
+  Validate/sanitize program minimumPoints on create/update/upload
+
+artifacts/api-server/src/lib/chatDbContext.ts
+  Build DB context for chat; enrich responses; topic-based program lookup
+
+artifacts/api-server/src/lib/chatFallback.ts
+  Database-backed fallback when AI refuses or hallucinates points
+
+lib/db/src/schema/universities.ts
+  Drizzle schema for universities (name + acronyms JSON)
+
+================================================================================
+MODIFIED — API SERVER (8)
+================================================================================
+
+artifacts/api-server/src/index.ts
+  Seed universities on server start
+
+artifacts/api-server/src/lib/aiAdvice.ts
+  ZIMSEC grading in prompt; sanitize AI cut-off text
+
+artifacts/api-server/src/lib/ollama.ts
+  Chat system prompt (allow subject Qs, correct points); lower temperature
+
+artifacts/api-server/src/routes/programs.ts
+  Cut-off logic fix; validation; university acronym filter; PATCH/DELETE validation
+
+artifacts/api-server/src/routes/careers.ts
+  Cut-off comparison fix (lower total = better); normalize student points
+
+artifacts/api-server/src/routes/chat.ts
+  Hybrid DB context; fallback on refusal/hallucination
+
+artifacts/api-server/src/routes/profile.ts
+  Normalize stored cutOffPoints
+
+================================================================================
+MODIFIED — CAREER GUIDANCE FRONTEND (9)
+================================================================================
+
+artifacts/career-guidance/src/pages/admin.tsx
+  Edit/delete programs; edit modal dialog; cut-off 1–15 validation
+
+artifacts/career-guidance/src/pages/assessment.tsx
+  Cut-off input 1–15; ZIMSEC help text (1–5 per subject, 1–15 total)
+
+artifacts/career-guidance/src/pages/chat.tsx
+  Updated welcome message with ZIMSEC scoring explanation
+
+artifacts/career-guidance/src/pages/recommendations.tsx
+  Cut-off display copy (total 1–15, per-subject 1–5)
+
+artifacts/career-guidance/src/components/layout.tsx
+  (UI/layout — modified in working tree)
+
+artifacts/career-guidance/src/components/ui-elements.tsx
+  (UI components — modified in working tree)
+
+artifacts/career-guidance/src/index.css
+  (Styles — modified in working tree)
+
+artifacts/career-guidance/src/pages/dashboard.tsx
+  (Dashboard — modified in working tree)
+
+artifacts/career-guidance/src/pages/landing.tsx
+  (Landing — modified in working tree)
+
+================================================================================
+MODIFIED — LIB / SCRIPTS / API SPEC (4)
+================================================================================
+
+lib/db/src/schema/index.ts
+  Export universities schema
+
+lib/api-spec/openapi.yaml
+  cutOffPoints and minimumPoints min/max 1–15; descriptions
+
+scripts/src/migrate-sqlite.ts
+  CREATE TABLE universities
+
+scripts/src/seed.ts
+  Seed universities with acronyms (UZ, NUST, CUT, etc.)
+
+================================================================================
+SUMMARY
+================================================================================
+
+  New files:      6
+  Modified:      21
+  Total:         27
+
+Note: Regenerate API client from openapi.yaml if you use Orval/codegen
+(lib/api-client-react, lib/api-zod) — those were not changed in this pass.

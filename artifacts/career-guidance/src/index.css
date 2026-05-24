@@ -95,7 +95,26 @@
   .glass-card {
     @apply bg-white/70 backdrop-blur-xl border border-white/20 shadow-xl shadow-primary/5;
   }
+  /*
+    Gradient clipped text is invisible if clip/gradient fails (some mobile WebViews).
+    Default to solid primary; only use the gradient when clip is supported.
+  */
   .gradient-text {
-    @apply text-transparent bg-clip-text bg-gradient-to-r from-primary via-secondary to-accent;
+    color: hsl(var(--primary));
+    font-weight: 800;
+  }
+  @supports ((-webkit-background-clip: text) or (background-clip: text)) {
+    .gradient-text {
+      background-image: linear-gradient(
+        to right,
+        hsl(var(--primary)),
+        hsl(var(--secondary)),
+        hsl(var(--accent))
+      );
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      color: transparent;
+    }
   }
 }

@@ -1,4 +1,4 @@
-import { db, usersTable, universityProgramsTable } from "@workspace/db";
+import { db, usersTable, universityProgramsTable, universitiesTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 
@@ -22,6 +22,20 @@ async function seed() {
     console.log("✓ Admin user created: admin@careerguide.zw / Admin@123");
   } else {
     console.log("✓ Admin user already exists");
+  }
+
+  const uniCount = await db.select().from(universitiesTable);
+  if (uniCount.length === 0) {
+    await db.insert(universitiesTable).values([
+      { name: "University of Zimbabwe", acronyms: ["UZ", "U.Z."] },
+      { name: "Bindura University of Science Education", acronyms: ["BUSE", "Bindura"] },
+      { name: "Chinhoyi University of Technology", acronyms: ["CUT", "Chinhoyi"] },
+      { name: "National University of Science & Technology (NUST)", acronyms: ["NUST", "NUST ZW"] },
+      { name: "Africa University", acronyms: ["AU", "Africa U"] },
+      { name: "Great Zimbabwe University", acronyms: ["GZU", "Great Zimbabwe"] },
+      { name: "TelOne Centre for Learning", acronyms: ["TelOne", "TCL"] },
+    ]);
+    console.log("✓ Universities with acronyms seeded");
   }
 
   // Seed university programs (use SEED_FORCE=1 to replace existing)

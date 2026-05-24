@@ -46,7 +46,7 @@ const formSchema = z.object({
   oLevelSubjects: z.array(z.string()).optional().default([]),
   personalityType: z.string().min(1, "Select a personality type"),
   hobbies: z.string().optional(),
-  cutOffPoints: z.coerce.number().min(0).max(20).optional().nullable(),
+  cutOffPoints: z.coerce.number().min(1).max(15).optional().nullable(),
   oLevelPasses: z.coerce.number().min(0).max(10).optional().nullable(),
   aLevelPasses: z.coerce.number().min(0).max(5).optional().nullable()
 });
@@ -233,15 +233,15 @@ export default function AssessmentPage() {
                     {renderCheckboxGrid("subjects", subjectsList, errors.subjects)}
                     <div className="space-y-2 pt-4 border-t border-border">
                       <Label className="text-base font-semibold">A-Level Cut-off Points (Optional)</Label>
-                      <p className="text-sm text-muted-foreground">Enter your ZIMSEC points (0–20) for a chance analysis. Does not affect recommendations.</p>
+                      <p className="text-sm text-muted-foreground">Enter your total ZIMSEC cut-off (1–15; each subject is 1–5 points, lower total is better). Used for chance analysis only.</p>
                       <Controller
                         name="cutOffPoints"
                         control={control}
                         render={({ field }) => (
                           <Input
                             type="number"
-                            min={0}
-                            max={20}
+                            min={1}
+                            max={15}
                             placeholder="e.g. 12"
                             {...field}
                             value={field.value ?? ""}
@@ -362,15 +362,15 @@ export default function AssessmentPage() {
                         <p className="text-xs text-muted-foreground">Min 2 for most programs</p>
                       </div>
                       <div className="space-y-2 text-center">
-                        <Label className="text-lg">A-Level Points (0-20)</Label>
+                        <Label className="text-lg">A-Level Points (1–15)</Label>
                         <Controller
                           name="cutOffPoints"
                           control={control}
                           render={({ field }) => (
                             <Input 
                               type="number"
-                              min={0}
-                              max={20}
+                              min={1}
+                              max={15}
                               placeholder="Cut-off"
                               {...field}
                               value={field.value ?? ""}
@@ -420,6 +420,8 @@ export default function AssessmentPage() {
           </form>
         </Card>
       </div>
+      
     </div>
+    
   );
 }

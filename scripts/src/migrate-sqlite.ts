@@ -69,6 +69,12 @@ const statements = [
     error_message TEXT,
     created_at INTEGER NOT NULL DEFAULT (unixepoch())
   )`,
+  `CREATE TABLE IF NOT EXISTS universities (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE,
+    acronyms TEXT NOT NULL,
+    created_at INTEGER NOT NULL DEFAULT (unixepoch())
+  )`,
   `CREATE TABLE IF NOT EXISTS university_programs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     school_name TEXT NOT NULL,

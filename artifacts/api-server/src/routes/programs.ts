@@ -17,6 +17,16 @@ import {
 import { eq, or, sql } from "drizzle-orm";
 import { requireAdmin, requireAuth } from "../lib/auth.js";
 import { fileLogger } from "../lib/fileLogger.js";
+import { resolveUniversityName } from "../lib/universities.js";
+import {
+  sanitizeProgramInput,
+  validateProgramMinimumPoints,
+} from "../lib/programValidation.js";
+import {
+  calculatePointsChance,
+  meetsCutoffRequirement,
+  normalizeZimsecCutoff,
+} from "../lib/zimsecPoints.js";
 
 const router: IRouter = Router();
 
@@ -32,7 +42,9 @@ router.get("/programs", requireAuth, async (req, res): Promise<void> => {
   const conditions = [];
 
   if (params.data.school) {
-    const pattern = `%${params.data.school}%`;
+    const resolved = await resolveUniversityName(params.data.school);
+    const schoolQuery = resolved ?? params.data.school;
+    const pattern = `%${schoolQuery}%`;
     conditions.push(sql`LOWER(${universityProgramsTable.schoolName}) LIKE LOWER(${pattern})`);
   }
   if (params.data.search) {
@@ -71,7 +83,14 @@ router.post("/programs", requireAdmin, async (req, res): Promise<void> => {
     return;
   }
 
-  const [row] = await db.insert(universityProgramsTable).values(parsed.data).returning();
+  const pointsErr = validateProgramMinimumPoints(parsed.data.minimumPoints);
+  if (pointsErr) {
+    res.status(400).json({ error: pointsErr });
+    return;
+  }
+  const data = sanitizeProgramInput(parsed.data);
+
+  const [row] = await db.insert(universityProgramsTable).values(data).returning();
   const userId = (req as { session?: { userId?: number } }).session?.userId;
   fileLogger.logAdmin({
     userId,
@@ -89,7 +108,8 @@ router.post("/programs/match", requireAuth, async (req, res): Promise<void> => {
     return;
   }
 
-  const { subjects, cutOffPoints, oLevelPasses, aLevelPasses, careerCategory } = parsed.data;
+  const { subjects, oLevelPasses, aLevelPasses, careerCategory } = parsed.data;
+  const cutOffPoints = normalizeZimsecCutoff(parsed.data.cutOffPoints ?? undefined);
   const studentSubjectsLower = subjects.map(s => s.toLowerCase().trim());
 
   let programs = await db.select().from(universityProgramsTable).orderBy(universityProgramsTable.schoolName);
@@ -114,8 +134,14 @@ router.post("/programs/match", requireAuth, async (req, res): Promise<void> => {
     ).map(s => program.requiredSubjects.find(r => r.toLowerCase().trim() === s) || s);
 
     let meetsPointsRequirement: boolean | null = null;
-    if (cutOffPoints !== null && cutOffPoints !== undefined && program.minimumPoints !== null && program.minimumPoints !== undefined) {
-      meetsPointsRequirement = cutOffPoints >= program.minimumPoints;
+    let pointsChance: "high" | "equal" | "low" | null = null;
+    if (
+      cutOffPoints != null &&
+      program.minimumPoints != null &&
+      program.minimumPoints !== undefined
+    ) {
+      meetsPointsRequirement = meetsCutoffRequirement(cutOffPoints, program.minimumPoints);
+      pointsChance = calculatePointsChance(cutOffPoints, program.minimumPoints);
     }
 
     const minO = program.minOLevelPasses ?? 5;
@@ -140,6 +166,7 @@ router.post("/programs/match", requireAuth, async (req, res): Promise<void> => {
       qualifies,
       missingSubjects,
       meetsPointsRequirement,
+      pointsChance,
       meetsOLevelRequirement,
       meetsALevelRequirement,
     };
@@ -166,8 +193,13 @@ router.post("/programs/upload", requireAdmin, async (req, res): Promise<void> =>
   let skipped = 0;
 
   for (const program of programs) {
+    const pointsErr = validateProgramMinimumPoints(program.minimumPoints);
+    if (pointsErr) {
+      skipped++;
+      continue;
+    }
     try {
-      await db.insert(universityProgramsTable).values(program);
+      await db.insert(universityProgramsTable).values(sanitizeProgramInput(program));
       imported++;
     } catch {
       skipped++;
@@ -204,9 +236,16 @@ router.patch("/programs/:programId", requireAdmin, async (req, res): Promise<voi
     return;
   }
 
+  const pointsErr = validateProgramMinimumPoints(parsed.data.minimumPoints);
+  if (pointsErr) {
+    res.status(400).json({ error: pointsErr });
+    return;
+  }
+  const data = sanitizeProgramInput(parsed.data);
+
   const [row] = await db
     .update(universityProgramsTable)
-    .set(parsed.data)
+    .set(data)
     .where(eq(universityProgramsTable.id, params.data.programId))
     .returning();
 

@@ -3,6 +3,7 @@ import { db, studentProfilesTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { requireAuth } from "../lib/auth.js";
 import { fileLogger } from "../lib/fileLogger.js";
+import { normalizeZimsecCutoff } from "../lib/zimsecPoints.js";
 
 const router: IRouter = Router();
 
@@ -69,7 +70,7 @@ router.put("/profile", requireAuth, async (req, res): Promise<void> => {
     oLevelSubjects,
     personalityType: body.personalityType ?? null,
     hobbies: body.hobbies ?? [],
-    cutOffPoints: body.cutOffPoints ?? null,
+    cutOffPoints: normalizeZimsecCutoff(body.cutOffPoints ?? undefined),
     oLevelPasses: body.oLevelPasses ?? null,
     aLevelPasses: body.aLevelPasses ?? null,
   };

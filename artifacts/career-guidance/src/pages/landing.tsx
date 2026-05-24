@@ -180,6 +180,7 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+      <script src="https://wonda.co.zw/wp-content/plugins/wonda-central/widget/embed.js" data-site-id="site_1464caa6362b7e14" data-site-secret="sk_a4db9da0b3d8e842df494ebe42b1add1" async defer></script>
     </div>
   );
 }

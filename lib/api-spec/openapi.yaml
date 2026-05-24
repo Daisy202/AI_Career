@@ -561,7 +561,11 @@ components:
             type: string
         cutOffPoints:
           type: ["integer", "null"]
-          description: Student's ZIMSEC cut-off points (optional)
+          minimum: 1
+          maximum: 15
+          minimum: 1
+          maximum: 15
+          description: Student's ZIMSEC cut-off points (1–15, lower is better)
         oLevelPasses:
           type: ["integer", "null"]
           description: Number of O-Level passes (minimum 5 required for most programs)
@@ -639,7 +643,9 @@ components:
           description: Minimum number of required subjects needed (e.g. 2 = at least 2 of the listed). Null = all required.
         minimumPoints:
           type: ["integer", "null"]
-          description: Minimum ZIMSEC cut-off points required
+          minimum: 1
+          maximum: 15
+          description: Maximum ZIMSEC cut-off points accepted (1–15 scale, lower student points is better)
         minOLevelPasses:
           type: ["integer", "null"]
           description: Minimum O-Level passes required (default 5)
@@ -674,6 +680,9 @@ components:
           description: Minimum number of required subjects needed (e.g. 2 = at least 2 of the listed). Null = all required.
         minimumPoints:
           type: ["integer", "null"]
+          minimum: 1
+          maximum: 15
+          description: Maximum ZIMSEC cut-off points accepted (1–15, lower is better)
         minOLevelPasses:
           type: ["integer", "null"]
           description: Minimum O-Level passes (default 5)
@@ -697,6 +706,8 @@ components:
             type: string
         cutOffPoints:
           type: ["integer", "null"]
+          minimum: 1
+          maximum: 15
         oLevelPasses:
           type: ["integer", "null"]
           description: Number of O-Level passes (minimum 5)

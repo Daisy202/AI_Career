@@ -7,6 +7,7 @@ config({ path: path.resolve(__dirname, "..", "..", "..", ".env") });
 
 import app from "./app";
 import { fileLogger } from "./lib/fileLogger.js";
+import { seedUniversitiesIfEmpty } from "./lib/universities.js";
 
 process.on("uncaughtException", (err) => {
   console.error("Uncaught exception:", err);
@@ -36,7 +37,12 @@ if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
-const server = app.listen(port, () => {
+const server = app.listen(port, async () => {
+  try {
+    await seedUniversitiesIfEmpty();
+  } catch (err) {
+    console.warn("University seed skipped:", err);
+  }
   console.log(`Server listening on port ${port}`);
   console.log("Press Ctrl+C to stop");
   fileLogger.logSystem({ message: "Server started", details: { port } });
