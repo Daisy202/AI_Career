@@ -14,6 +14,7 @@ export interface DbProgramRow {
   schoolName: string;
   minimumPoints: number | null;
   requiredSubjects: string[];
+  minRequiredSubjects: number | null;
   careerCategory: string | null;
 }
 
@@ -24,6 +25,7 @@ export async function loadAllPrograms(): Promise<DbProgramRow[]> {
     schoolName: r.schoolName,
     minimumPoints: r.minimumPoints,
     requiredSubjects: r.requiredSubjects,
+    minRequiredSubjects: r.minRequiredSubjects,
     careerCategory: r.careerCategory,
   }));
 }
@@ -76,9 +78,11 @@ function messageMentionsPrograms(message: string, programs: DbProgramRow[]): DbP
 
 export async function buildChatDbContext(
   message: string,
-  studentSubjects?: string[]
+  studentSubjects?: string[],
+  conversationText?: string
 ): Promise<string> {
   const programs = await loadAllPrograms();
+  const topicText = conversationText ?? message;
   const mentionedSchools = await findUniversitiesInText(message);
   const resolved = await resolveUniversityName(message);
   if (resolved && !mentionedSchools.includes(resolved)) mentionedSchools.push(resolved);
@@ -94,7 +98,7 @@ export async function buildChatDbContext(
     );
   }
 
-  const topicHits = programsForMessageTopic(message, programs);
+  const topicHits = programsForMessageTopic(topicText, programs);
   if (topicHits.length > 0) {
     relevant = topicHits;
   }
@@ -138,10 +142,14 @@ export async function buildChatDbContext(
     return `- **${p.programName}** @ ${p.schoolName} (${pts}; ${subs})`;
   });
 
+  const topicLine = topicText.match(/\b(medicine|doctor|mbchb)\b/i)
+    ? "\nCONVERSATION TOPIC: Medicine — stay on medicine/healthcare only; do NOT suggest agriculture or unrelated careers.\n"
+    : "";
+
   return `
 
 ${ZIMSEC_GRADING_EXPLANATION}
-
+${topicLine}
 VERIFIED DATABASE PROGRAMS (you MUST use these for subject and cut-off answers; never refuse A-Level requirement questions):
 ${lines.join("\n")}`;
 }

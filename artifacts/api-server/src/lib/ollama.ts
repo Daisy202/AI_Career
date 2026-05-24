@@ -11,10 +11,12 @@ interface ChatRequest {
     interests?: string[];
     strengths?: string[];
     subjects?: string[];
+    oLevelSubjects?: string[];
     personalityType?: string | null;
     hobbies?: string[];
     cutOffPoints?: number | null;
   };
+  conversationTopic?: string | null;
 }
 
 interface ChatResult {
@@ -22,33 +24,32 @@ interface ChatResult {
   suggestions: string[];
 }
 
-const SYSTEM_PROMPT = `You are CareerGuide AI for pre-university students in Zimbabwe.
+const SYSTEM_PROMPT = `You are CareerGuide AI — ONLY for Zimbabwe career and university guidance. You are NOT a general chatbot, therapist, or translator.
 
-YOU MUST ANSWER (never refuse these as "privacy" or "discriminatory"):
-- Which A-Level or O-Level subjects are needed for a career or degree
-- University cut-off points and pass requirements
-- Programs and schools listed in VERIFIED DATABASE PROGRAMS below
+IN SCOPE (answer these):
+- A-Level / O-Level subjects for careers and degrees in Zimbabwe
+- Cut-off points, passes, programs in VERIFIED DATABASE PROGRAMS
+- Where graduates work and rough pay — only for the career the student is discussing (2 sentences max)
 
-ZIMSEC POINTS (never get this wrong):
-- Each A-Level subject = 1 to 5 points only (1 best, 5 weakest pass)
-- University cut-off = TOTAL aggregate between 1 and 15 (lower total = better)
-- NEVER say Biology needs 18 points, or 38 total points, or 150
+OUT OF SCOPE — reply ONLY: "I only help with careers and study in Zimbabwe. Ask about subjects, universities, or cut-off points."
+- Weather, politics, jokes, recipes, relationships, general knowledge
+- Describing yourself as a "large language model" or listing translation/poems/code features
+- Therapy, crisis counselling, suicide hotlines (not your role)
 
-OUT OF SCOPE ONLY: weather, politics, unrelated trivia. Then say: "Sorry, I can't help with that. Ask me about careers, subjects, or universities in Zimbabwe."
+ZIMSEC: 1–5 points per subject; 1–15 total (lower = better). Never invent 18, 38, or 150.
 
-RULES:
-1. Short answers: max 6 lines or bullets.
-2. If VERIFIED DATABASE PROGRAMS lists a match, cite those subjects and cut-offs exactly.
-3. Direct factual questions (e.g. "A-Levels for Medicine?") → answer immediately from the database; do not refuse.
-4. Use **bold** for program and school names.
-5. If no database match, say what you know generally and suggest checking our program list.`;
+CONVERSATION RULES:
+1. Follow the student's topic from the chat (if they asked about medicine, stay on medicine — never switch to agriculture unless they ask).
+2. O-Level only → explain they need A-Level for MBChB; mention nursing/diploma options from the database.
+3. Max 6 lines or short bullets. Use **bold** for program names.
+4. Use VERIFIED DATABASE PROGRAMS exactly; do not make up universities or subjects.`;
 
 export async function chatWithOllama(request: ChatRequest): Promise<ChatResult> {
   const baseUrl = process.env.OLLAMA_BASE_URL || "http://localhost:11434";
   const model = process.env.OLLAMA_MODEL || "gemma3:1b";
 
   const profileContext = request.studentProfile
-    ? `\n\nStudent Profile:\n- Interests: ${request.studentProfile.interests?.join(", ") || "Not specified"}\n- Strengths: ${request.studentProfile.strengths?.join(", ") || "Not specified"}\n- A-Level Subjects: ${request.studentProfile.subjects?.join(", ") || "Not specified"}\n- Personality: ${request.studentProfile.personalityType || "Not specified"}${request.studentProfile.cutOffPoints != null ? `\n- ZIMSEC cut-off points: ${request.studentProfile.cutOffPoints} (1–15 scale, lower is better)` : ""}`
+    ? `\n\nStudent Profile:\n- Interests: ${request.studentProfile.interests?.join(", ") || "Not specified"}\n- Strengths: ${request.studentProfile.strengths?.join(", ") || "Not specified"}\n- O-Level Subjects: ${request.studentProfile.oLevelSubjects?.join(", ") || "None listed"}\n- A-Level Subjects: ${request.studentProfile.subjects?.join(", ") || "None yet"}\n- Personality: ${request.studentProfile.personalityType || "Not specified"}${request.studentProfile.cutOffPoints != null ? `\n- ZIMSEC cut-off points: ${request.studentProfile.cutOffPoints} (1–15 scale, lower is better)` : ""}${request.conversationTopic ? `\n- Active topic from chat: ${request.conversationTopic} (do not change to other careers)` : ""}`
     : "";
 
   const messages: Array<{ role: string; content: string }> = [
@@ -72,8 +73,8 @@ export async function chatWithOllama(request: ChatRequest): Promise<ChatResult> 
         messages,
         stream: false,
         options: {
-          temperature: 0.4,
-          num_predict: 180,
+          temperature: 0.25,
+          num_predict: 160,
         },
       }),
     });

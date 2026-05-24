@@ -1,13 +1,21 @@
 import { Router, type IRouter } from "express";
 import { SendChatMessageBody, SendChatMessageResponse } from "@workspace/api-zod";
 import { db, chatSessionsTable, chatMessagesTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
 import { chatWithOllama } from "../lib/ollama.js";
 import { requireAuth } from "../lib/auth.js";
 import { buildChatDbContext, enrichChatResponse, loadAllPrograms } from "../lib/chatDbContext.js";
 import { seedUniversitiesIfEmpty } from "../lib/universities.js";
-import { buildDbFallbackAnswer } from "../lib/chatFallback.js";
+import { buildDbFallbackAnswer, tryRuleBasedCareerAnswer } from "../lib/chatFallback.js";
 import { isInScopeRefusal, normalizeZimsecCutoff } from "../lib/zimsecPoints.js";
+import {
+  buildConversationText,
+  classifyUserMessage,
+  extractConversationTopic,
+  getCannedResponse,
+  isOffTopicAssistantResponse,
+  isOLevelStudent,
+  type ChatTurn,
+} from "../lib/chatScope.js";
 
 function hasHallucinatedPoints(text: string): boolean {
   if (/\b(?:3[6-9]|[4-9]\d|\d{3,})\s*(?:points?|pts)\b/i.test(text)) return true;
@@ -30,43 +38,89 @@ router.post("/chat", requireAuth, async (req, res): Promise<void> => {
 
   try {
     await seedUniversitiesIfEmpty();
-    const dbContext = await buildChatDbContext(
-      message,
-      studentProfile?.subjects
-    );
+
+    const historyTurns: ChatTurn[] =
+      history?.map(h => ({ role: h.role as "user" | "assistant", content: h.content })) ?? [];
+    const conversationText = buildConversationText(message, historyTurns);
+    const conversationTopic = extractConversationTopic(conversationText);
+    const messageKind = classifyUserMessage(message);
+
     const allPrograms = await loadAllPrograms();
-
-    const result = await chatWithOllama({
+    const oLevelOnly = isOLevelStudent(
       message,
-      history: history?.map(h => ({ role: h.role as "user" | "assistant", content: h.content })),
-      dbContext,
-      studentProfile: studentProfile
-        ? {
-            interests: studentProfile.interests,
-            strengths: studentProfile.strengths,
-            subjects: studentProfile.subjects,
-            personalityType: studentProfile.personalityType,
-            hobbies: studentProfile.hobbies,
-            cutOffPoints: normalizeZimsecCutoff(studentProfile.cutOffPoints ?? undefined),
-          }
-        : undefined,
-    });
-
-    const enriched = enrichChatResponse(
-      result.message,
-      allPrograms,
-      studentProfile?.cutOffPoints
+      studentProfile?.subjects,
+      studentProfile?.oLevelSubjects
     );
-    result.message = enriched.message;
 
-    const fallback = buildDbFallbackAnswer(message, allPrograms);
-    if (
-      fallback &&
-      (isInScopeRefusal(result.message) || hasHallucinatedPoints(result.message))
-    ) {
-      result.message = fallback;
-    } else if (fallback && allPrograms.length > 0 && result.message.length < 40) {
-      result.message = fallback;
+    let resultMessage: string;
+    let suggestions: string[] = [];
+
+    const canned = getCannedResponse(messageKind);
+    if (canned) {
+      resultMessage = canned;
+      suggestions = [
+        "What A-Levels do I need for my career?",
+        "What cut-off points does UZ medicine need?",
+        "I'm O-Level only — what diploma can I do?",
+      ];
+    } else {
+      const ruleBased = tryRuleBasedCareerAnswer(message, conversationText, allPrograms, {
+        isOLevel: oLevelOnly,
+      });
+      if (ruleBased) {
+        resultMessage = ruleBased;
+      } else {
+        const dbContext = await buildChatDbContext(
+          message,
+          studentProfile?.subjects,
+          conversationText
+        );
+
+        const result = await chatWithOllama({
+          message,
+          history: historyTurns,
+          dbContext,
+          conversationTopic,
+          studentProfile: studentProfile
+            ? {
+                interests: studentProfile.interests,
+                strengths: studentProfile.strengths,
+                subjects: studentProfile.subjects,
+                oLevelSubjects: studentProfile.oLevelSubjects,
+                personalityType: studentProfile.personalityType,
+                hobbies: studentProfile.hobbies,
+                cutOffPoints: normalizeZimsecCutoff(studentProfile.cutOffPoints ?? undefined),
+              }
+            : undefined,
+        });
+
+        resultMessage = result.message;
+        suggestions = result.suggestions;
+
+        const enriched = enrichChatResponse(
+          resultMessage,
+          allPrograms,
+          studentProfile?.cutOffPoints
+        );
+        resultMessage = enriched.message;
+
+        const fallback = buildDbFallbackAnswer(message, allPrograms, conversationText);
+        if (
+          fallback &&
+          (isInScopeRefusal(resultMessage) ||
+            hasHallucinatedPoints(resultMessage) ||
+            isOffTopicAssistantResponse(resultMessage, conversationTopic))
+        ) {
+          resultMessage = fallback;
+        } else if (isOffTopicAssistantResponse(resultMessage, conversationTopic)) {
+          const ruleRetry = tryRuleBasedCareerAnswer(message, conversationText, allPrograms, {
+            isOLevel: oLevelOnly,
+          });
+          resultMessage = ruleRetry ?? getCannedResponse("off_topic");
+        } else if (fallback && allPrograms.length > 0 && resultMessage.length < 40) {
+          resultMessage = fallback;
+        }
+      }
     }
 
     let finalSessionId = sessionId;
@@ -79,13 +133,13 @@ router.post("/chat", requireAuth, async (req, res): Promise<void> => {
       if (finalSessionId) {
         await db.insert(chatMessagesTable).values([
           { sessionId: finalSessionId, role: "user", content: message },
-          { sessionId: finalSessionId, role: "assistant", content: result.message },
+          { sessionId: finalSessionId, role: "assistant", content: resultMessage },
         ]);
       }
     }
 
     res.json({
-      ...SendChatMessageResponse.parse(result),
+      ...SendChatMessageResponse.parse({ message: resultMessage, suggestions }),
       ...(userId && finalSessionId ? { sessionId: finalSessionId } : {}),
     });
   } catch (error) {
