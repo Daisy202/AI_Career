@@ -7,17 +7,12 @@ import * as z from "zod";
 import { ArrowLeft, ArrowRight, CheckCircle2, Sparkles } from "lucide-react";
 import { Button, Card, Progress, Checkbox, Label, Textarea, Input } from "@/components/ui-elements";
 import { useCareerStore } from "@/store/use-career-store";
-
-const subjectsList = [
-  "Mathematics", "Physics", "Chemistry", "Biology", "Computer Science",
-  "Geography", "History", "Commerce", "Accounting", "Economics",
-  "Business Studies", "English Literature", "Art & Design", "Agriculture"
-];
-
-const oLevelSubjectsList = [
-  "English Language", "Mathematics", "Biology", "Chemistry", "Physics",
-  "Geography", "History", "Commerce", "Accounting", "Computer Science"
-];
+import {
+  A_LEVEL_SUBJECT_GROUPS,
+  COMMON_A_LEVEL_COMBINATIONS,
+  O_LEVEL_SUBJECT_GROUPS,
+  type SubjectGroup,
+} from "@workspace/zimsec-subjects";
 
 const interestsList = [
   "Technology & Software", "Healthcare & Medicine", "Business & Finance", 
@@ -123,8 +118,7 @@ export default function AssessmentPage() {
     if (step > 1) setStep(s => s - 1);
   };
 
-  // Helper to render checkbox grids
-  const renderCheckboxGrid = (name: any, options: string[], error: any) => (
+  const renderCheckboxGrid = (name: "interests" | "strengths" | "subjects" | "oLevelSubjects", options: string[], error: { message?: string } | undefined) => (
     <div className="space-y-4">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Controller
@@ -159,6 +153,54 @@ export default function AssessmentPage() {
           )}
         />
       </div>
+      {error && <p className="text-destructive font-semibold text-sm">{error.message}</p>}
+    </div>
+  );
+
+  const renderGroupedSubjectGrid = (
+    name: "subjects" | "oLevelSubjects",
+    groups: SubjectGroup[],
+    error: { message?: string } | undefined
+  ) => (
+    <div className="space-y-6">
+      {groups.map((group) => (
+        <div key={group.label}>
+          <h3 className="text-sm font-bold text-primary uppercase tracking-wide mb-3">{group.label}</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Controller
+              name={name}
+              control={control}
+              render={({ field }) => (
+                <>
+                  {group.subjects.map((option) => (
+                    <Label
+                      key={option}
+                      className={`flex items-center space-x-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                        field.value.includes(option)
+                          ? "border-primary bg-primary/5 shadow-sm"
+                          : "border-border hover:border-primary/50 hover:bg-muted"
+                      }`}
+                    >
+                      <Checkbox
+                        checked={field.value.includes(option)}
+                        onChange={(e) => {
+                          const valueCopy = [...field.value];
+                          if (e.target.checked) {
+                            field.onChange([...valueCopy, option]);
+                          } else {
+                            field.onChange(valueCopy.filter((v) => v !== option));
+                          }
+                        }}
+                      />
+                      <span className="text-sm font-semibold leading-snug">{option}</span>
+                    </Label>
+                  ))}
+                </>
+              )}
+            />
+          </div>
+        </div>
+      ))}
       {error && <p className="text-destructive font-semibold text-sm">{error.message}</p>}
     </div>
   );
@@ -218,9 +260,9 @@ export default function AssessmentPage() {
                   <div className="space-y-6">
                     <div>
                       <h2 className="text-2xl font-bold mb-2">Select your O-Level Subjects</h2>
-                      <p className="text-muted-foreground">Select all subjects you passed at O-Level. Required for diploma and degree matching.</p>
+                      <p className="text-muted-foreground">ZIMSEC/Cambridge O-Level subjects you passed (schools may not offer every subject).</p>
                     </div>
-                    {renderCheckboxGrid("oLevelSubjects", oLevelSubjectsList, errors.oLevelSubjects)}
+                    {renderGroupedSubjectGrid("oLevelSubjects", O_LEVEL_SUBJECT_GROUPS, errors.oLevelSubjects)}
                   </div>
                 )}
 
@@ -228,9 +270,21 @@ export default function AssessmentPage() {
                   <div className="space-y-6">
                     <div>
                       <h2 className="text-2xl font-bold mb-2">Select your A-Level Subjects</h2>
-                      <p className="text-muted-foreground">What subjects are you taking or planning? Skip if you only have O-Level (diploma path).</p>
+                      <p className="text-muted-foreground">
+                        ZIMSEC/Cambridge A-Level subjects in Zimbabwe (Sciences, Commercials, Arts, Languages, Technical). Students usually take 3–4. Skip if O-Level only.
+                      </p>
                     </div>
-                    {renderCheckboxGrid("subjects", subjectsList, errors.subjects)}
+                    <div className="rounded-xl border bg-muted/40 p-4 text-sm text-muted-foreground mb-4">
+                      <p className="font-semibold text-foreground mb-2">Common combinations</p>
+                      <ul className="space-y-1 list-disc list-inside">
+                        {COMMON_A_LEVEL_COMBINATIONS.map((c) => (
+                          <li key={c.name}>
+                            <span className="font-medium text-foreground">{c.name}:</span> {c.subjects}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                    {renderGroupedSubjectGrid("subjects", A_LEVEL_SUBJECT_GROUPS, errors.subjects)}
                     <div className="space-y-2 pt-4 border-t border-border">
                       <Label className="text-base font-semibold">A-Level Cut-off Points (Optional)</Label>
                       <p className="text-sm text-muted-foreground">Enter your total ZIMSEC cut-off (1–15; each subject is 1–5 points, lower total is better). Used for chance analysis only.</p>

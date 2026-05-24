@@ -12,6 +12,7 @@
     "@workspace/api-zod": "workspace:*",
     "dotenv": "^16.4.5",
     "@workspace/db": "workspace:*",
+    "@workspace/zimsec-subjects": "workspace:*",
     "bcryptjs": "^3.0.3",
     "cookie-parser": "^1.4.7",
     "cors": "^2",

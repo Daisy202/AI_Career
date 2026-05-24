@@ -27,6 +27,7 @@ import {
   meetsCutoffRequirement,
   normalizeZimsecCutoff,
 } from "../lib/zimsecPoints.js";
+import { subjectAlias } from "../lib/subjectMatch.js";
 
 const router: IRouter = Router();
 
@@ -284,30 +285,5 @@ router.delete("/programs/:programId", requireAdmin, async (req, res): Promise<vo
 
   res.json(DeleteProgramResponse.parse({ message: "Program deleted successfully" }));
 });
-
-function subjectAlias(a: string, b: string): boolean {
-  const aliases: Record<string, string[]> = {
-    maths: ["mathematics", "math"],
-    mathematics: ["maths", "math"],
-    math: ["maths", "mathematics"],
-    bio: ["biology"],
-    biology: ["bio"],
-    chem: ["chemistry"],
-    chemistry: ["chem"],
-    physics: ["physical science"],
-    english: ["english language", "english literature"],
-    accounts: ["accounting", "accountancy"],
-    accounting: ["accounts", "accountancy"],
-    commerce: ["commercial studies", "business studies"],
-    geography: ["geo"],
-    geo: ["geography"],
-    history: ["hist"],
-    hist: ["history"],
-  };
-  const aKey = a.toLowerCase().replace(/\s+/g, "");
-  const bKey = b.toLowerCase().replace(/\s+/g, "");
-  return (aliases[aKey] || []).some(x => x.replace(/\s+/g, "") === bKey) ||
-         (aliases[bKey] || []).some(x => x.replace(/\s+/g, "") === aKey);
-}
 
 export default router;
