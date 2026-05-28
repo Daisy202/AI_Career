@@ -15,14 +15,41 @@ import {
 } from "@workspace/zimsec-subjects";
 
 const interestsList = [
-  "Technology & Software", "Healthcare & Medicine", "Business & Finance", 
-  "Arts & Entertainment", "Engineering & Architecture", "Law & Public Policy",
-  "Agriculture & Environment", "Education & Training"
+  "Technology & Software",
+  "Healthcare & Medicine",
+  "Business & Finance",
+  "Arts & Entertainment",
+  "Engineering & Architecture",
+  "Law & Public Policy",
+  "Agriculture & Environment",
+  "Education & Training",
+  "Media & Communication",
+  "Social Sciences & Community Development",
+  "Hospitality & Tourism",
+  "Skilled Trades & Technical Work",
+  "Public Service & Governance",
+  "Entrepreneurship & Startups",
+  "Research & Innovation",
+  "Sports, Fitness & Wellness",
 ];
 
 const strengthsList = [
-  "Problem Solving", "Creativity", "Leadership", "Communication", 
-  "Analytical Thinking", "Teamwork", "Adaptability", "Attention to Detail"
+  "Problem Solving",
+  "Creativity",
+  "Leadership",
+  "Communication",
+  "Analytical Thinking",
+  "Teamwork",
+  "Adaptability",
+  "Attention to Detail",
+  "Critical Thinking",
+  "Empathy",
+  "Research Skills",
+  "Numeracy",
+  "Digital Literacy",
+  "Planning & Organization",
+  "Resilience",
+  "Hands-on Technical Skills",
 ];
 
 const personalityTypes = [
@@ -44,6 +71,14 @@ const formSchema = z.object({
   cutOffPoints: z.coerce.number().min(1).max(15).optional().nullable(),
   oLevelPasses: z.coerce.number().min(0).max(10).optional().nullable(),
   aLevelPasses: z.coerce.number().min(0).max(5).optional().nullable()
+}).superRefine((data, ctx) => {
+  if ((data.subjects?.length ?? 0) > 0 && (data.cutOffPoints === null || data.cutOffPoints === undefined)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["cutOffPoints"],
+      message: "A-Level students must provide cut-off points (1-15).",
+    });
+  }
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -109,6 +144,7 @@ export default function AssessmentPage() {
     if (step === 1 && w.interests.length === 0) return;
     if (step === 2 && w.strengths.length === 0) return;
     if (step === 3 && (w.oLevelSubjects?.length ?? 0) === 0) return;
+    if (step === 4 && (w.subjects?.length ?? 0) > 0 && (w.cutOffPoints == null)) return;
     if (step === 5 && !w.personalityType) return;
     
     if (step < totalSteps) setStep(s => s + 1);

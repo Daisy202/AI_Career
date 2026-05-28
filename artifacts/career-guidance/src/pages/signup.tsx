@@ -14,7 +14,16 @@ const registerSchema = z.object({
   email: z.string().email("Invalid email address"),
   password: z.string().min(6, "Password must be at least 6 characters"),
   school: z.string().optional(),
-  level: z.string().optional(),
+  level: z.enum(["Form 4", "Form 6"]).optional(),
+  cutOffPoints: z.coerce.number().min(1).max(15).optional().nullable(),
+}).superRefine((data, ctx) => {
+  if (data.level === "Form 6" && (data.cutOffPoints === null || data.cutOffPoints === undefined)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["cutOffPoints"],
+      message: "A-Level students must enter cut-off points (1-15).",
+    });
+  }
 });
 
 export default function SignupPage() {
@@ -25,12 +34,12 @@ export default function SignupPage() {
 
   const form = useForm<z.infer<typeof registerSchema>>({
     resolver: zodResolver(registerSchema),
-    defaultValues: { name: "", email: "", password: "", school: "", level: "" },
+    defaultValues: { name: "", email: "", password: "", school: "", level: undefined, cutOffPoints: null },
   });
 
   const onSubmit = (data: z.infer<typeof registerSchema>) => {
     registerMutation.mutate(
-      { data },
+      { data: { name: data.name, email: data.email, password: data.password, school: data.school, level: data.level } },
       {
         onSuccess: (res) => {
           setUser(res.user);
@@ -96,6 +105,21 @@ export default function SignupPage() {
               </SelectContent>
             </Select>
           </div>
+          {form.watch("level") === "Form 6" && (
+            <div className="space-y-2">
+              <Label htmlFor="reg-points">A-Level Cut-off Points (1-15)</Label>
+              <Input
+                id="reg-points"
+                type="number"
+                min={1}
+                max={15}
+                {...form.register("cutOffPoints")}
+              />
+              {form.formState.errors.cutOffPoints && (
+                <p className="text-sm text-destructive">{form.formState.errors.cutOffPoints.message}</p>
+              )}
+            </div>
+          )}
           <Button type="submit" className="w-full" disabled={registerMutation.isPending}>
             {registerMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Create account

@@ -16,6 +16,7 @@ import {
   isOLevelStudent,
   type ChatTurn,
 } from "../lib/chatScope.js";
+import { sanitizeResponseStyle } from "../lib/aiAdvice.js";
 
 function hasHallucinatedPoints(text: string): boolean {
   if (/\b(?:3[6-9]|[4-9]\d|\d{3,})\s*(?:points?|pts)\b/i.test(text)) return true;
@@ -73,7 +74,8 @@ router.post("/chat", requireAuth, async (req, res): Promise<void> => {
         const dbContext = await buildChatDbContext(
           message,
           studentProfile?.subjects,
-          conversationText
+          conversationText,
+          { cutOffPoints: studentProfile?.cutOffPoints ?? undefined }
         );
 
         const result = await chatWithOllama({
@@ -94,7 +96,7 @@ router.post("/chat", requireAuth, async (req, res): Promise<void> => {
             : undefined,
         });
 
-        resultMessage = result.message;
+        resultMessage = sanitizeResponseStyle(result.message);
         suggestions = result.suggestions;
 
         const enriched = enrichChatResponse(
@@ -102,7 +104,7 @@ router.post("/chat", requireAuth, async (req, res): Promise<void> => {
           allPrograms,
           studentProfile?.cutOffPoints
         );
-        resultMessage = enriched.message;
+        resultMessage = sanitizeResponseStyle(enriched.message);
 
         const fallback = buildDbFallbackAnswer(message, allPrograms, conversationText);
         if (
@@ -111,14 +113,14 @@ router.post("/chat", requireAuth, async (req, res): Promise<void> => {
             hasHallucinatedPoints(resultMessage) ||
             isOffTopicAssistantResponse(resultMessage, conversationTopic))
         ) {
-          resultMessage = fallback;
+          resultMessage = sanitizeResponseStyle(fallback);
         } else if (isOffTopicAssistantResponse(resultMessage, conversationTopic)) {
           const ruleRetry = tryRuleBasedCareerAnswer(message, conversationText, allPrograms, {
             isOLevel: oLevelOnly,
           });
-          resultMessage = ruleRetry ?? getCannedResponse("off_topic");
+          resultMessage = sanitizeResponseStyle(ruleRetry ?? getCannedResponse("off_topic"));
         } else if (fallback && allPrograms.length > 0 && resultMessage.length < 40) {
-          resultMessage = fallback;
+          resultMessage = sanitizeResponseStyle(fallback);
         }
       }
     }

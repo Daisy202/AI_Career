@@ -19,6 +19,7 @@ import {
   normalizeZimsecCutoff,
 } from "../lib/zimsecPoints.js";
 import { subjectAlias } from "../lib/subjectMatch.js";
+import { determineStudentTier, programTypePriority } from "../lib/studentTier.js";
 
 const router: IRouter = Router();
 
@@ -76,10 +77,18 @@ router.post("/recommend", requireAuth, async (req, res): Promise<void> => {
   });
   const studentSubjectsLower = (parsed.data.subjects ?? []).map((s: string) => String(s).toLowerCase().trim());
   const cutOffPoints = normalizeZimsecCutoff(parsed.data.cutOffPoints ?? undefined);
+  if ((parsed.data.subjects?.length ?? 0) > 0 && cutOffPoints == null) {
+    res.status(400).json({ error: "A-Level students must provide cut-off points (1-15)." });
+    return;
+  }
   const oLevelPasses = parsed.data.oLevelPasses ?? null;
   const aLevelPasses = parsed.data.aLevelPasses ?? null;
 
   const allPrograms = await db.select().from(universityProgramsTable).orderBy(universityProgramsTable.schoolName);
+  const studentTier = determineStudentTier({
+    aLevelSubjects: parsed.data.subjects ?? [],
+    cutOffPoints,
+  });
 
   const result = recommendations.map(r => {
     const relevantPrograms = allPrograms.filter(p =>
@@ -147,20 +156,24 @@ router.post("/recommend", requireAuth, async (req, res): Promise<void> => {
         meetsALevelRequirement: meetsALevelCount,
       };
     });
-    const sorted = mapped.sort((a: { qualifies: boolean; isDiploma: boolean; pointsChance?: string | null }, b: { qualifies: boolean; isDiploma: boolean; pointsChance?: string | null }) => {
+    const sorted = mapped.sort((a: { qualifies: boolean; isDiploma: boolean; pointsChance?: string | null; program: { programType?: string | null; minimumPoints?: number | null } }, b: { qualifies: boolean; isDiploma: boolean; pointsChance?: string | null; program: { programType?: string | null; minimumPoints?: number | null } }) => {
       if (a.qualifies && !b.qualifies) return -1;
       if (!a.qualifies && b.qualifies) return 1;
-      if (isOLevelOnly && a.isDiploma && !b.isDiploma) return -1;
-      if (isOLevelOnly && !a.isDiploma && b.isDiploma) return 1;
-      // When user has A-Level: ensure poly/diploma programs (no A-Level required) also appear
-      if (!isOLevelOnly && a.qualifies && b.qualifies && a.isDiploma && !b.isDiploma) return -1;
-      if (!isOLevelOnly && a.qualifies && b.qualifies && !a.isDiploma && b.isDiploma) return 1;
+      const tierTypeDelta =
+        programTypePriority(a.program.programType, studentTier) -
+        programTypePriority(b.program.programType, studentTier);
+      if (tierTypeDelta !== 0) return tierTypeDelta;
       // When user has points, surface programs with points requirements earlier
       if (cutOffPoints != null) {
         const aHasPoints = a.pointsChance != null;
         const bHasPoints = b.pointsChance != null;
         if (aHasPoints && !bHasPoints) return -1;
         if (!aHasPoints && bHasPoints) return 1;
+        if (studentTier === "mixed_low_points") {
+          const aMin = a.program.minimumPoints ?? 99;
+          const bMin = b.program.minimumPoints ?? 99;
+          if (aMin !== bMin) return aMin - bMin;
+        }
       }
       return 0;
     });
@@ -180,6 +193,13 @@ router.post("/recommend", requireAuth, async (req, res): Promise<void> => {
     }
 
     let adviceReasons = r.matchReasons.length > 0 ? [...r.matchReasons] : ["If you have the required subjects or equivalent, you can pursue programs in this field"];
+    if (studentTier === "certificate_diploma") {
+      adviceReasons = [...adviceReasons, "Your current profile is diploma/certificate-first; these are prioritized for faster entry chances."];
+    } else if (studentTier === "degree_first") {
+      adviceReasons = [...adviceReasons, "Your profile is degree-first; degree programs are prioritized, with diploma/certificate alternatives shown next."];
+    } else {
+      adviceReasons = [...adviceReasons, "Your profile mixes degree and diploma options, with diploma paths highlighted to improve enrollment chances."];
+    }
     // Add missing A-Level subjects when user doesn't qualify (e.g. "Missing A-Level: Biology" for Medical Doctor)
     const nonQualifyingInMatches = matchedPrograms.filter((m: { qualifies: boolean }) => !m.qualifies);
     if (nonQualifyingInMatches.length > 0) {

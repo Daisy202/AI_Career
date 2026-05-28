@@ -19,6 +19,7 @@ import DashboardPage from "@/pages/dashboard";
 import ChatPage from "@/pages/chat";
 import FeedbackPage from "@/pages/feedback";
 import AdminPage from "@/pages/admin";
+import ProfilePage from "@/pages/profile";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient({
@@ -118,6 +119,7 @@ function Router() {
           <Route path="/dashboard" component={DashboardPage} />
           <Route path="/chat" component={ChatPage} />
           <Route path="/feedback" component={FeedbackPage} />
+          <Route path="/profile" component={ProfilePage} />
           <Route path="/admin" component={AdminPage} />
           <Route component={NotFound} />
         </Switch>

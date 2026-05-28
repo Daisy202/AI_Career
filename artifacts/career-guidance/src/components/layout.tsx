@@ -19,6 +19,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     { href: "/recommendations", label: "Matches", icon: <Star className="w-4 h-4 mr-2" /> },
     { href: "/dashboard", label: "Dashboard", icon: <BarChart2 className="w-4 h-4 mr-2" /> },
     { href: "/chat", label: "AI Advisor", icon: <MessageSquare className="w-4 h-4 mr-2" /> },
+    { href: "/profile", label: "Profile", icon: <User className="w-4 h-4 mr-2" /> },
   ];
 
   if (user?.role === 'admin') {
@@ -101,6 +102,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
                       </div>
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                      <Link href="/profile" className="cursor-pointer flex w-full">
+                        <User className="mr-2 h-4 w-4" /> My Profile
+                      </Link>
+                    </DropdownMenuItem>
                     {user.role === 'admin' && (
                       <DropdownMenuItem asChild>
                         <Link href="/admin" className="cursor-pointer flex w-full">

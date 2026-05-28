@@ -35,6 +35,17 @@ export interface AiAdviceResult {
   recommendedPrograms: Array<{ programName: string; schoolName: string }>;
 }
 
+export function sanitizeResponseStyle(text: string): string {
+  if (!text) return text;
+  return text
+    .replace(/\b(as of|as at)\s+[A-Za-z]+\s+\d{1,2},?\s+\d{4}\b/gi, "")
+    .replace(/\b(as of|as at)\s+\d{4}\b/gi, "")
+    .replace(/\b(today|currently|at present)\b[:,]?\s*/gi, "")
+    .replace(/\s{2,}/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 /**
  * Cross-reference AI text with DB programs. Returns programs that appear in the AI response.
  */
@@ -100,6 +111,7 @@ PROGRAMS IN OUR DATABASE (only recommend from this list):
 ${programList || "No programs matched yet."}
 
 Give brief, actionable advice. Mention specific schools/programs from the list when relevant. If O-Level only, highlight diploma options.
+Do not use time qualifiers like "as of", "currently", "today", or calendar dates.
 Format program names in bold using **Program Name at School** (e.g. **Diploma in Digital Marketing at TelOne Centre for Learning**).`;
 
   try {
@@ -121,7 +133,9 @@ Format program names in bold using **Program Name at School** (e.g. **Diploma in
     }
 
     const data = (await response.json()) as { response?: string };
-    const advice = sanitizeCutoffMentionsInText((data.response || "").trim());
+    const advice = sanitizeResponseStyle(
+      sanitizeCutoffMentionsInText((data.response || "").trim())
+    );
     const recommendedPrograms = extractProgramsFromAiText(advice, allDbPrograms);
 
     return { advice, recommendedPrograms };

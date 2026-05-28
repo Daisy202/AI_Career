@@ -44,6 +44,9 @@ export default function AdminPage() {
   const user = useCareerStore(s => s.user);
   const [uploadData, setUploadData] = useState("");
   const [editingProgram, setEditingProgram] = useState<UniversityProgram | null>(null);
+  const [programSearch, setProgramSearch] = useState("");
+  const [programPage, setProgramPage] = useState(1);
+  const PROGRAMS_PER_PAGE = 10;
   
   const { data: programs, refetch } = useGetPrograms();
   const createMutation = useCreateProgram();
@@ -175,6 +178,20 @@ export default function AdminPage() {
     });
   };
 
+  const normalizedSearch = programSearch.trim().toLowerCase();
+  const filteredPrograms = (programs ?? []).filter((p) => {
+    if (!normalizedSearch) return true;
+    return (
+      p.schoolName.toLowerCase().includes(normalizedSearch) ||
+      p.programName.toLowerCase().includes(normalizedSearch)
+    );
+  });
+  const totalPrograms = filteredPrograms.length;
+  const totalPages = Math.max(1, Math.ceil(totalPrograms / PROGRAMS_PER_PAGE));
+  const currentPage = Math.min(programPage, totalPages);
+  const pageStart = (currentPage - 1) * PROGRAMS_PER_PAGE;
+  const pagedPrograms = filteredPrograms.slice(pageStart, pageStart + PROGRAMS_PER_PAGE);
+
   const onAddProgram = (data: z.infer<typeof programSchema>) => {
     createMutation.mutate({
       data: buildProgramPayload(data),
@@ -262,6 +279,20 @@ export default function AdminPage() {
 
           <TabsContent value="programs">
             <Card className="p-6 overflow-x-auto">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                <Input
+                  value={programSearch}
+                  onChange={(e) => {
+                    setProgramSearch(e.target.value);
+                    setProgramPage(1);
+                  }}
+                  placeholder="Search by school or program..."
+                  className="max-w-md"
+                />
+                <p className="text-sm text-muted-foreground">
+                  Total programs: <span className="font-semibold text-foreground">{totalPrograms}</span>
+                </p>
+              </div>
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -275,7 +306,7 @@ export default function AdminPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {programs?.length ? programs.map((p) => (
+                  {pagedPrograms.length ? pagedPrograms.map((p) => (
                     <TableRow key={p.id}>
                       <TableCell className="font-semibold">{p.schoolName}</TableCell>
                       <TableCell>{p.programName}</TableCell>
@@ -284,7 +315,7 @@ export default function AdminPage() {
                           {p.requiredSubjects.map((s, i) => <Badge key={i} variant="outline" className="text-[10px]">{s}</Badge>)}
                         </div>
                       </TableCell>
-                      <TableCell>{p.minimumPoints ?? '—'}</TableCell>
+                      <TableCell>{p.minimumPoints ?? "-"}</TableCell>
                       <TableCell className="text-xs">{p.minOLevelPasses ?? 5}O / {p.minALevelPasses ?? 2}A</TableCell>
                       <TableCell>{p.careerCategory}</TableCell>
                       <TableCell className="text-right space-x-1">
@@ -303,6 +334,31 @@ export default function AdminPage() {
                   )}
                 </TableBody>
               </Table>
+              <div className="flex items-center justify-between mt-4">
+                <p className="text-xs text-muted-foreground">
+                  Page {currentPage} of {totalPages}
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={currentPage <= 1}
+                    onClick={() => setProgramPage((p) => Math.max(1, p - 1))}
+                  >
+                    Previous
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={currentPage >= totalPages}
+                    onClick={() => setProgramPage((p) => Math.min(totalPages, p + 1))}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
             </Card>
 
             <Dialog

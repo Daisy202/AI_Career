@@ -174,14 +174,29 @@ export function recommendCareers(profile: {
   const hasMinOLevel = (profile.oLevelPasses ?? 0) >= 5 || oLevelCount >= 5;
   const meetsBestFit = hasMinALevel && hasMinOLevel;
 
-  const allTerms = [
-    ...profile.interests.map(s => s.toLowerCase()),
-    ...profile.strengths.map(s => s.toLowerCase()),
-    ...(profile.subjects ?? []).map(s => s.toLowerCase()),
-    ...(profile.oLevelSubjects ?? []).map(s => s.toLowerCase()),
-    ...(profile.hobbies || []).map(s => s.toLowerCase()),
-    (profile.personalityType || "").toLowerCase(),
-  ];
+  const expandedInterestAliases: Record<string, string[]> = {
+    "Technology & Software": ["technology", "software", "it", "ict", "computing", "data", "cyber"],
+    "Healthcare & Medicine": ["health", "medicine", "nursing", "wellness", "public health"],
+    "Business & Finance": ["business", "finance", "accounting", "entrepreneurship", "economics"],
+    "Arts & Entertainment": ["arts", "media", "design", "creative", "music", "film"],
+    "Engineering & Architecture": ["engineering", "architecture", "construction", "technical", "design"],
+    "Law & Public Policy": ["law", "legal", "justice", "policy", "governance"],
+    "Agriculture & Environment": ["agriculture", "farming", "environment", "climate", "natural resources"],
+    "Education & Training": ["education", "teaching", "training", "mentoring"],
+    "Media & Communication": ["media", "journalism", "communication", "public relations", "writing"],
+    "Social Sciences & Community Development": ["social", "community", "development", "psychology", "sociology"],
+    "Hospitality & Tourism": ["hospitality", "tourism", "travel", "catering", "events"],
+    "Skilled Trades & Technical Work": ["technical", "trade", "artisan", "mechanic", "welding", "plumbing"],
+    "Public Service & Governance": ["public service", "government", "governance", "administration", "civic"],
+    "Entrepreneurship & Startups": ["startup", "entrepreneurship", "innovation", "small business", "enterprise"],
+    "Research & Innovation": ["research", "innovation", "science", "analysis", "investigation"],
+    "Sports, Fitness & Wellness": ["sports", "fitness", "exercise", "wellness", "coaching"],
+  };
+
+  const normalizedInterestTerms = profile.interests.flatMap(i => {
+    const terms = expandedInterestAliases[i] ?? [];
+    return [i.toLowerCase(), ...terms];
+  });
 
   const scores = CAREERS.map(career => {
     let score = 0;
@@ -221,14 +236,13 @@ export function recommendCareers(profile: {
       "Agriculture": ["agriculture", "farming", "environment"],
     };
     const categoryLower = career.category.toLowerCase();
-    const interestMatch = profile.interests.some(i => {
-      const il = i.toLowerCase();
+    const interestMatch = normalizedInterestTerms.some(il => {
       if (categoryLower.includes(il) || il.includes(categoryLower.split(" ")[0])) return true;
       const aliases = categoryToInterest[career.category];
       return aliases?.some(a => il.includes(a) || a.includes(il)) ?? false;
     });
     if (interestMatch) {
-      score += 30;
+      score += 35;
       if (!reasons.some(r => r.includes("interest"))) {
         reasons.push(`Your interest in ${career.category} aligns with this field`);
       }
@@ -265,7 +279,8 @@ export function recommendCareers(profile: {
       profile.strengths.some(s => skill.toLowerCase().includes(s.toLowerCase()) || s.toLowerCase().includes(skill.toLowerCase()))
     );
     if (skillMatches.length > 0) {
-      score += skillMatches.length * 8;
+      score += skillMatches.length * 10;
+      reasons.push(`Your strengths align with key skills: ${skillMatches.slice(0, 3).join(", ")}`);
     }
 
     // Personality type matching (Holland theory)
@@ -324,7 +339,23 @@ export function recommendCareers(profile: {
     }
   }
 
-  return filtered
-    .sort((a, b) => b.matchPercentage - a.matchPercentage)
-    .slice(0, 6);
+  const sorted = filtered.sort((a, b) => b.matchPercentage - a.matchPercentage);
+  const diversified: typeof sorted = [];
+  const seenCategory = new Set<string>();
+
+  for (const item of sorted) {
+    if (!seenCategory.has(item.career.category)) {
+      diversified.push(item);
+      seenCategory.add(item.career.category);
+    }
+    if (diversified.length >= 4) break;
+  }
+  for (const item of sorted) {
+    if (diversified.length >= 6) break;
+    if (!diversified.some(d => d.career.id === item.career.id)) {
+      diversified.push(item);
+    }
+  }
+
+  return diversified.slice(0, 6);
 }

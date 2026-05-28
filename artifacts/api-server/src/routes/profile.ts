@@ -51,9 +51,15 @@ router.put("/profile", requireAuth, async (req, res): Promise<void> => {
   const strengths = body.strengths ?? [];
   const subjects = body.subjects ?? [];
   const oLevelSubjects = body.oLevelSubjects ?? [];
+  const hasALevelSubjects = subjects.length > 0;
+  const hasCutoff = body.cutOffPoints !== null && body.cutOffPoints !== undefined;
 
   if (interests.length === 0 || strengths.length === 0) {
     res.status(400).json({ error: "interests and strengths are required" });
+    return;
+  }
+  if (hasALevelSubjects && !hasCutoff) {
+    res.status(400).json({ error: "A-Level students must provide cut-off points (1-15)." });
     return;
   }
 

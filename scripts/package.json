@@ -9,7 +9,9 @@
     "seed-telone": "tsx ./src/seed-telone.ts",
     "migrate-sqlite": "tsx ./src/migrate-sqlite.ts",
     "fix-mbchb": "tsx ./src/fix-mbchb.ts",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "normalize-cutoff-null": "tsx ./src/normalize-cutoff-null.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "import-schools-dataset": "tsx ./src/import-schools-dataset.ts"
   },
   "dependencies": {
     "@workspace/db": "workspace:*",
