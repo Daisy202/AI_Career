@@ -149,9 +149,6 @@ export default function ChatPage() {
               <p className="whitespace-pre-wrap text-[15px] leading-relaxed">
                 {msg.role === "assistant" ? <AiText text={msg.content} /> : msg.content}
               </p>
-              <p className={`text-[11px] text-muted-foreground mt-1 ${msg.role === "user" ? "text-right" : ""}`}>
-                {new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-              </p>
             </div>
           </div>
         ))}

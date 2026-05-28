@@ -40,6 +40,10 @@ export function sanitizeResponseStyle(text: string): string {
   return text
     .replace(/\b(as of|as at)\s+[A-Za-z]+\s+\d{1,2},?\s+\d{4}\b/gi, "")
     .replace(/\b(as of|as at)\s+\d{4}\b/gi, "")
+    .replace(/\b(on|by)\s+\d{1,2}(st|nd|rd|th)?\s+[A-Za-z]+\s+\d{4}\b/gi, "")
+    .replace(/\b\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}\b/g, "")
+    .replace(/\b\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2}\b/g, "")
+    .replace(/\b(?:at\s*)?\d{1,2}:\d{2}\s*(?:am|pm)?\b/gi, "")
     .replace(/\b(today|currently|at present)\b[:,]?\s*/gi, "")
     .replace(/\s{2,}/g, " ")
     .replace(/\n{3,}/g, "\n\n")
