@@ -14,42 +14,81 @@ import {
   type SubjectGroup,
 } from "@workspace/zimsec-subjects";
 
-const interestsList = [
-  "Technology & Software",
-  "Healthcare & Medicine",
-  "Business & Finance",
-  "Arts & Entertainment",
-  "Engineering & Architecture",
-  "Law & Public Policy",
-  "Agriculture & Environment",
-  "Education & Training",
-  "Media & Communication",
-  "Social Sciences & Community Development",
-  "Hospitality & Tourism",
-  "Skilled Trades & Technical Work",
-  "Public Service & Governance",
-  "Entrepreneurship & Startups",
-  "Research & Innovation",
-  "Sports, Fitness & Wellness",
+const interestGroups: SubjectGroup[] = [
+  {
+    label: "Careers & Sectors",
+    subjects: [
+      "Technology & Software",
+      "Healthcare & Medicine",
+      "Business & Finance",
+      "Engineering & Architecture",
+      "Law & Public Policy",
+      "Agriculture & Environment",
+      "Education & Training",
+      "Media & Communication",
+      "Social Sciences & Community Development",
+      "Hospitality & Tourism",
+      "Public Service & Governance",
+      "Entrepreneurship & Startups",
+      "Research & Innovation",
+      "Sports, Fitness & Wellness",
+      "Arts & Entertainment",
+      "Skilled Trades & Technical Work",
+    ],
+  },
 ];
 
-const strengthsList = [
-  "Problem Solving",
-  "Creativity",
-  "Leadership",
-  "Communication",
-  "Analytical Thinking",
-  "Teamwork",
-  "Adaptability",
-  "Attention to Detail",
-  "Critical Thinking",
-  "Empathy",
-  "Research Skills",
-  "Numeracy",
-  "Digital Literacy",
-  "Planning & Organization",
-  "Resilience",
-  "Hands-on Technical Skills",
+const strengthGroups: SubjectGroup[] = [
+  {
+    label: "Thinking & Cognition",
+    subjects: [
+      "Critical Thinking",
+      "Strategic Planning",
+      "Research & Inquiry",
+      "Numerical Reasoning",
+      "Observation & Perception",
+      "Analytical Thinking",
+      "Problem Solving",
+    ],
+  },
+  {
+    label: "People & Interpersonal",
+    subjects: [
+      "Empathy & Emotional Intelligence",
+      "Relationship Building",
+      "Persuasion & Negotiation",
+      "Active Listening",
+      "Conflict Resolution",
+      "Communication",
+      "Teamwork",
+      "Leadership",
+    ],
+  },
+  {
+    label: "Work Ethic & Character",
+    subjects: [
+      "Time Management",
+      "Organisation & Planning",
+      "Self-Motivation & Drive",
+      "Integrity & Accountability",
+      "Resilience & Perseverance",
+      "Adaptability",
+      "Attention to Detail",
+    ],
+  },
+  {
+    label: "Practical & Technical",
+    subjects: [
+      "Hands-On & Technical Skills",
+      "Digital Literacy",
+      "Data & Financial Analysis",
+      "Process Improvement",
+      "Building & Making",
+      "Creativity",
+      "Research Skills",
+      "Numeracy",
+    ],
+  },
 ];
 
 const personalityTypes = [
@@ -193,6 +232,54 @@ export default function AssessmentPage() {
     </div>
   );
 
+  const renderGroupedOptionGrid = (
+    name: "interests" | "strengths",
+    groups: SubjectGroup[],
+    error: { message?: string } | undefined
+  ) => (
+    <div className="space-y-6">
+      {groups.map((group) => (
+        <div key={group.label}>
+          <h3 className="text-sm font-bold text-primary uppercase tracking-wide mb-3">{group.label}</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Controller
+              name={name}
+              control={control}
+              render={({ field }) => (
+                <>
+                  {group.subjects.map((option) => (
+                    <Label
+                      key={option}
+                      className={`flex items-center space-x-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                        field.value.includes(option)
+                          ? "border-primary bg-primary/5 shadow-sm"
+                          : "border-border hover:border-primary/50 hover:bg-muted"
+                      }`}
+                    >
+                      <Checkbox
+                        checked={field.value.includes(option)}
+                        onChange={(e) => {
+                          const valueCopy = [...field.value];
+                          if (e.target.checked) {
+                            field.onChange([...valueCopy, option]);
+                          } else {
+                            field.onChange(valueCopy.filter((v) => v !== option));
+                          }
+                        }}
+                      />
+                      <span className="text-sm font-semibold leading-snug">{option}</span>
+                    </Label>
+                  ))}
+                </>
+              )}
+            />
+          </div>
+        </div>
+      ))}
+      {error && <p className="text-destructive font-semibold text-sm">{error.message}</p>}
+    </div>
+  );
+
   const renderGroupedSubjectGrid = (
     name: "subjects" | "oLevelSubjects",
     groups: SubjectGroup[],
@@ -278,7 +365,7 @@ export default function AssessmentPage() {
                       <h2 className="text-2xl font-bold mb-2">What are your main interests?</h2>
                       <p className="text-muted-foreground">Select all that apply. What topics excite you the most?</p>
                     </div>
-                    {renderCheckboxGrid("interests", interestsList, errors.interests)}
+                    {renderGroupedOptionGrid("interests", interestGroups, errors.interests)}
                   </div>
                 )}
 
@@ -288,7 +375,7 @@ export default function AssessmentPage() {
                       <h2 className="text-2xl font-bold mb-2">What are your top strengths?</h2>
                       <p className="text-muted-foreground">Be honest about what you are naturally good at.</p>
                     </div>
-                    {renderCheckboxGrid("strengths", strengthsList, errors.strengths)}
+                    {renderGroupedOptionGrid("strengths", strengthGroups, errors.strengths)}
                   </div>
                 )}
 

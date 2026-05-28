@@ -42,7 +42,14 @@ router.get("/chat/sessions/:sessionId", requireAuth, async (req, res): Promise<v
     .where(eq(chatMessagesTable.sessionId, sessionId))
     .orderBy(chatMessagesTable.createdAt);
 
-  res.json({ session, messages: messages.map((m) => ({ role: m.role, content: m.content })) });
+  res.json({
+    session,
+    messages: messages.map((m) => ({
+      role: m.role,
+      content: m.content,
+      createdAt: m.createdAt,
+    })),
+  });
 });
 
 router.post("/chat/sessions", requireAuth, async (req, res): Promise<void> => {

@@ -9,9 +9,14 @@ import type { ChatMessage } from "@workspace/api-client-react";
 const API = "/api";
 
 export default function ChatPage() {
+  type LocalChatMessage = ChatMessage & { createdAt?: string };
   const { user, profile, setProfile, clearProfile } = useCareerStore();
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    { role: "assistant", content: "Hi! I'm your AI Career Advisor for Zimbabwe. Ask about careers, A-Level subjects, or university requirements — I use our program database. ZIMSEC: each subject is 1–5 points; your total cut-off is 1–15 (lower is better)." }
+  const [messages, setMessages] = useState<LocalChatMessage[]>([
+    {
+      role: "assistant",
+      content: "Hi! I'm your AI Career Advisor for Zimbabwe. Ask about careers, A-Level subjects, or university requirements — I use our program database. ZIMSEC: each subject is 1–5 points; your total cut-off is 1–15 (lower is better).",
+      createdAt: new Date().toISOString(),
+    }
   ]);
   const [input, setInput] = useState("");
   const [sessionId, setSessionId] = useState<number | null>(null);
@@ -22,7 +27,7 @@ export default function ChatPage() {
   const { mutate, isPending } = useSendChatMessage({
     mutation: {
       onSuccess: (data: { message: string; suggestions?: string[]; sessionId?: number }) => {
-        setMessages(prev => [...prev, { role: "assistant", content: data.message }]);
+        setMessages(prev => [...prev, { role: "assistant", content: data.message, createdAt: new Date().toISOString() }]);
         if (data.sessionId) setSessionId(data.sessionId);
       }
     }
@@ -47,7 +52,11 @@ export default function ChatPage() {
   useEffect(() => { scrollToBottom(); }, [messages, isPending]);
 
   const startNewChat = () => {
-    setMessages([{ role: "assistant", content: "Hi! I'm your AI Career Advisor for Zimbabwe. Ask about careers, A-Level subjects, or university requirements — I use our program database. ZIMSEC: each subject is 1–5 points; your total cut-off is 1–15 (lower is better)." }]);
+    setMessages([{
+      role: "assistant",
+      content: "Hi! I'm your AI Career Advisor for Zimbabwe. Ask about careers, A-Level subjects, or university requirements — I use our program database. ZIMSEC: each subject is 1–5 points; your total cut-off is 1–15 (lower is better).",
+      createdAt: new Date().toISOString(),
+    }]);
     setSessionId(null);
     setShowSessions(false);
   };
@@ -55,7 +64,11 @@ export default function ChatPage() {
   const loadSession = async (id: number) => {
     const data = await fetch(`${API}/chat/sessions/${id}`, { credentials: "include" }).then((r) => r.json());
     const msgs = data.messages ?? [];
-    setMessages(msgs.length ? msgs as ChatMessage[] : [{ role: "assistant", content: "Start the conversation!" }]);
+    setMessages(
+      msgs.length
+        ? (msgs as LocalChatMessage[])
+        : [{ role: "assistant", content: "Start the conversation!", createdAt: new Date().toISOString() }]
+    );
     setSessionId(id);
     setShowSessions(false);
   };
@@ -66,10 +79,10 @@ export default function ChatPage() {
 
     const userMsg = input.trim();
     setInput("");
-    const newMessages: ChatMessage[] = [...messages, { role: "user", content: userMsg }];
+    const newMessages: LocalChatMessage[] = [...messages, { role: "user", content: userMsg, createdAt: new Date().toISOString() }];
     setMessages(newMessages);
 
-    const history = newMessages.slice(0, -1);
+    const history: ChatMessage[] = newMessages.slice(0, -1).map(({ role, content }) => ({ role, content }));
     mutate({
       data: {
         message: userMsg,
@@ -148,6 +161,23 @@ export default function ChatPage() {
             >
               <p className="whitespace-pre-wrap text-[15px] leading-relaxed">
                 {msg.role === "assistant" ? <AiText text={msg.content} /> : msg.content}
+              </p>
+              <p className={`text-[11px] text-muted-foreground mt-1 ${msg.role === "user" ? "text-right" : ""}`}>
+                {msg.createdAt
+                  ? new Date(msg.createdAt).toLocaleString([], {
+                      year: "numeric",
+                      month: "short",
+                      day: "2-digit",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })
+                  : new Date().toLocaleString([], {
+                      year: "numeric",
+                      month: "short",
+                      day: "2-digit",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
               </p>
             </div>
           </div>
