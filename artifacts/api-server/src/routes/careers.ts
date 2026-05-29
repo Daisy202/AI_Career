@@ -53,6 +53,14 @@ router.get("/careers/:careerId", requireAuth, async (req, res): Promise<void> =>
     return;
   }
 
+  // Recommendations use static CAREERS ids — prefer those before imported category rows.
+  const staticCareer = CAREERS.find(c => c.id === params.data.careerId);
+  if (staticCareer) {
+    const { keywords: _keywords, ...career } = staticCareer;
+    res.json(GetCareerByIdResponse.parse(career));
+    return;
+  }
+
   const fromDb = await db
     .select()
     .from(careersTable)
@@ -64,13 +72,7 @@ router.get("/careers/:careerId", requireAuth, async (req, res): Promise<void> =>
     return;
   }
 
-  const career = CAREERS.find(c => c.id === params.data.careerId);
-  if (!career) {
-    res.status(404).json({ error: "Career not found" });
-    return;
-  }
-
-  res.json(GetCareerByIdResponse.parse(career));
+  res.status(404).json({ error: "Career not found" });
 });
 
 router.post("/recommend", requireAuth, async (req, res): Promise<void> => {
