@@ -173,7 +173,13 @@ router.post("/programs/match", requireAuth, async (req, res): Promise<void> => {
     };
   });
 
-  res.json(MatchProgramsResponse.parse(matches));
+  const sorted = [...matches].sort((a, b) => {
+    if (a.qualifies && !b.qualifies) return -1;
+    if (!a.qualifies && b.qualifies) return 1;
+    return 0;
+  });
+
+  res.json(MatchProgramsResponse.parse(sorted));
 });
 
 // POST /programs/upload (admin only)

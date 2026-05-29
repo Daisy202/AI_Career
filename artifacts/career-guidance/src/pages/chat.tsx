@@ -14,7 +14,7 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<LocalChatMessage[]>([
     {
       role: "assistant",
-      content: "Hi! I'm your AI Career Advisor for Zimbabwe. Ask about careers, A-Level subjects, or university requirements — I use our program database. ZIMSEC: each subject is 1–5 points; your total cut-off is 1–15 (lower is better).",
+      content: "Hi! I'm your AI Career Advisor for Zimbabwe. Ask about careers, A-Level subjects, or university requirements — I use our program database. ZIMSEC: each subject is 0–5 points (5 is best); your total is up to 15 points (higher is better).",
       createdAt: new Date().toISOString(),
     }
   ]);
@@ -54,7 +54,7 @@ export default function ChatPage() {
   const startNewChat = () => {
     setMessages([{
       role: "assistant",
-      content: "Hi! I'm your AI Career Advisor for Zimbabwe. Ask about careers, A-Level subjects, or university requirements — I use our program database. ZIMSEC: each subject is 1–5 points; your total cut-off is 1–15 (lower is better).",
+      content: "Hi! I'm your AI Career Advisor for Zimbabwe. Ask about careers, A-Level subjects, or university requirements — I use our program database. ZIMSEC: each subject is 0–5 points (5 is best); your total is up to 15 points (higher is better).",
       createdAt: new Date().toISOString(),
     }]);
     setSessionId(null);

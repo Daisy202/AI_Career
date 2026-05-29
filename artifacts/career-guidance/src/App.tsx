@@ -62,7 +62,11 @@ function Router() {
     fetch("/api/profile", { credentials: "include" })
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
-        if (data && typeof data === "object" && "interests" in data) setProfile(data);
+        // Do not overwrite a profile set by the current assessment session.
+        const existing = useCareerStore.getState().profile;
+        if (data && typeof data === "object" && "interests" in data && !existing) {
+          setProfile(data);
+        }
       })
       .catch(() => {});
   }, [user, setProfile]);

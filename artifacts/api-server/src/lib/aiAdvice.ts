@@ -1,11 +1,16 @@
 /**
- * Generate personalized career advice using Ollama, based on student profile
- * and programs in our database (schools, diplomas, degrees).
- * AI response is cross-referenced with DB to display only verified programs.
+ * AI explanation layer only — eligibility is computed in programRecommendationEngine.
  */
-import { sanitizeCutoffMentionsInText, ZIMSEC_GRADING_EXPLANATION } from "./zimsecPoints.js";
-const baseUrl = process.env.OLLAMA_BASE_URL || "http://localhost:11434";
-const model = process.env.OLLAMA_MODEL || "gemma3:1b";
+import { sanitizeCutoffMentionsInText } from "./zimsecPoints.js";
+import { generateAdviceText } from "./aiProvider.js";
+import type { DbProgramRow } from "./chatDbContext.js";
+import {
+  AI_EXPLANATION_SYSTEM_RULES,
+  buildAiRecommendationPayload,
+  payloadToPromptBlock,
+  type AiRecommendationPayload,
+} from "./programRecommendationEngine.js";
+import { normalizeSubjectList } from "./subjectMatch.js";
 
 export interface ProfileForAdvice {
   interests: string[];
@@ -13,6 +18,7 @@ export interface ProfileForAdvice {
   subjects: string[];
   oLevelSubjects: string[];
   personalityType?: string | null;
+  cutOffPoints?: number | null;
 }
 
 export interface ProgramForAdvice {
@@ -33,26 +39,69 @@ export interface RecommendationForAdvice {
 export interface AiAdviceResult {
   advice: string;
   recommendedPrograms: Array<{ programName: string; schoolName: string }>;
+  enginePayload: AiRecommendationPayload;
+}
+
+const MONTH_NAMES =
+  "january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|sept|oct|nov|dec";
+
+export function hasTemporalPhrasing(text: string): boolean {
+  if (!text) return false;
+  const monthRe = new RegExp(
+    `\\b(as of|as at|on|by|since|until|before|after)\\s+(${MONTH_NAMES}|\\d{1,2})\\b`,
+    "i"
+  );
+  const todayRe = new RegExp(
+    `\\b(today is|today's date|right now it is)\\s+\\d{1,2}\\s+(${MONTH_NAMES})\\b`,
+    "i"
+  );
+  const dateRe = new RegExp(
+    `\\b\\d{1,2}(st|nd|rd|th)?\\s+(${MONTH_NAMES})(\\s+\\d{4})?\\b`,
+    "i"
+  );
+  return (
+    monthRe.test(text) ||
+    todayRe.test(text) ||
+    dateRe.test(text) ||
+    /\b(as of today|as of now|at this time|at the moment)\b/i.test(text)
+  );
 }
 
 export function sanitizeResponseStyle(text: string): string {
   if (!text) return text;
-  return text
-    .replace(/\b(as of|as at)\s+[A-Za-z]+\s+\d{1,2},?\s+\d{4}\b/gi, "")
-    .replace(/\b(as of|as at)\s+\d{4}\b/gi, "")
-    .replace(/\b(on|by)\s+\d{1,2}(st|nd|rd|th)?\s+[A-Za-z]+\s+\d{4}\b/gi, "")
+
+  let out = text
+    .replace(
+      new RegExp(`\\b(as of|as at)\\s+(${MONTH_NAMES})\\s+\\d{1,2},?\\s*\\d{0,4}\\b`, "gi"),
+      ""
+    )
+    .replace(new RegExp(`\\b(as of|as at)\\s+\\d{4}\\b`, "gi"), "")
+    .replace(
+      new RegExp(`\\b(on|by|since|until)\\s+\\d{1,2}(st|nd|rd|th)?\\s+(${MONTH_NAMES})\\s*\\d{0,4}\\b`, "gi"),
+      ""
+    )
+    .replace(new RegExp(`\\b\\d{1,2}(st|nd|rd|th)?\\s+(${MONTH_NAMES})\\s+\\d{4}\\b`, "gi"), "")
+    .replace(new RegExp(`\\b(${MONTH_NAMES})\\s+\\d{1,2},?\\s+\\d{4}\\b`, "gi"), "")
     .replace(/\b\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}\b/g, "")
     .replace(/\b\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2}\b/g, "")
     .replace(/\b(?:at\s*)?\d{1,2}:\d{2}\s*(?:am|pm)?\b/gi, "")
-    .replace(/\b(today|currently|at present)\b[:,]?\s*/gi, "")
+    .replace(/\b(today is|today's date|right now it is)\s+[^.!?\n]+/gi, "")
+    .replace(/\b(as of today|as of now|at this time|at the moment)\b[:,]?\s*/gi, "")
+    .replace(/\b(today|currently|at present|nowadays)\b[:,]?\s*/gi, "")
     .replace(/\s{2,}/g, " ")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
+
+  if (hasTemporalPhrasing(out)) {
+    out = out
+      .replace(new RegExp(`\\b\\d{1,2}(st|nd|rd|th)?\\s+(${MONTH_NAMES})\\b`, "gi"), "")
+      .replace(/\b(as of|as at)\b[^.!?\n]*/gi, "")
+      .replace(/\s{2,}/g, " ")
+      .trim();
+  }
+  return out;
 }
 
-/**
- * Cross-reference AI text with DB programs. Returns programs that appear in the AI response.
- */
 export function extractProgramsFromAiText(
   aiText: string,
   dbPrograms: Array<{ programName: string; schoolName: string }>
@@ -72,7 +121,8 @@ export function extractProgramsFromAiText(
     const exactSchool = text.includes(schoolLower);
     const progWords = progLower.split(/\s+/).filter(w => w.length > 2);
     const schoolWords = schoolLower.split(/\s+/).filter(w => w.length > 2);
-    const progPartial = progWords.filter(w => !["the", "and", "for", "in", "of"].includes(w)).length >= 2 &&
+    const progPartial =
+      progWords.filter(w => !["the", "and", "for", "in", "of"].includes(w)).length >= 2 &&
       progWords.filter(w => text.includes(w)).length >= 2;
     const schoolPartial = schoolWords.some(w => text.includes(w));
 
@@ -86,65 +136,55 @@ export function extractProgramsFromAiText(
 
 export async function generateCareerAdvice(
   profile: ProfileForAdvice,
-  recommendations: RecommendationForAdvice[],
-  allDbPrograms: Array<{ programName: string; schoolName: string }>
+  programs: DbProgramRow[],
+  notEligibleCareers: Array<{ career: string; missingSubjects: string[] }>,
+  opts?: { userId?: number | null; enginePayload?: AiRecommendationPayload }
 ): Promise<AiAdviceResult> {
-  const hasALevel = (profile.subjects ?? []).length >= 2;
-  const hasOLevel = (profile.oLevelSubjects ?? []).length >= 5;
+  const payload =
+    opts?.enginePayload ??
+    buildAiRecommendationPayload(
+      programs,
+      {
+        subjects: normalizeSubjectList(profile.subjects ?? []),
+        oLevelSubjects: normalizeSubjectList(profile.oLevelSubjects ?? []),
+        cutOffPoints: profile.cutOffPoints ?? null,
+        interests: profile.interests ?? [],
+        strengths: profile.strengths ?? [],
+        personalityType: profile.personalityType,
+      },
+      notEligibleCareers
+    );
 
-  const programList = recommendations
-    .flatMap(r => r.qualifyingPrograms)
-    .slice(0, 20)
-    .map(p => `- ${p.programName} @ ${p.schoolName}${p.campus ? ` (${p.campus})` : ""}${p.programType === "diploma" ? " [Diploma - no A-Level required]" : ""}`)
-    .join("\n");
+  const prompt = `${AI_EXPLANATION_SYSTEM_RULES}
 
-  const prompt = `You are a career advisor for pre-university students in Zimbabwe. Based on this student profile and the programs in our database, give SHORT personalized advice (max 4-5 sentences). Be specific about schools and programs we have.
+TASK:
+Generate concise personalized academic guidance.
 
-${ZIMSEC_GRADING_EXPLANATION}
+${payloadToPromptBlock(payload)}
 
-STUDENT PROFILE:
-- Interests: ${profile.interests.join(", ") || "Not specified"}
-- Strengths: ${profile.strengths.join(", ") || "Not specified"}
-- O-Level subjects: ${profile.oLevelSubjects.join(", ") || "None"}
-- A-Level subjects: ${profile.subjects.join(", ") || "None"}
-- Education level: ${hasALevel ? "Has A-Level" : hasOLevel ? "O-Level only (can do diplomas)" : "Incomplete"}
-
-TOP CAREER FITS: ${recommendations.slice(0, 3).map(r => `${r.careerName} (${r.matchPercentage}%)`).join(", ")}
-
-PROGRAMS IN OUR DATABASE (only recommend from this list):
-${programList || "No programs matched yet."}
-
-Give brief, actionable advice. Mention specific schools/programs from the list when relevant. If O-Level only, highlight diploma options.
-Do not use time qualifiers like "as of", "currently", "today", or calendar dates.
-Format program names in bold using **Program Name at School** (e.g. **Diploma in Digital Marketing at TelOne Centre for Learning**).`;
+INSTRUCTIONS:
+- If status is no_direct_degree_match, explain briefly and recommend ONLY alternativePathways
+- Mention missing requirements from notEligibleCareers only when relevant
+- List programs in order of subject fit; lead with arts/media/journalism programs when those appear in degreePrograms
+- Do NOT lead with engineering or science degrees unless they are the only matches
+- Use interests/strengths ONLY to pick among programs already in the payload — never to add new programs
+- Do not invent any program not listed above`;
 
   try {
-    const response = await fetch(`${baseUrl}/api/generate`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model,
-        prompt,
-        stream: false,
-        options: { temperature: 0.6, num_predict: 200 },
-      }),
+    const raw = await generateAdviceText(prompt, {
+      temperature: 0.2,
+      maxTokens: 200,
+      context: { source: "recommendation_advice", userId: opts?.userId ?? null },
     });
-
-    if (!response.ok) {
-      const errText = await response.text();
-      console.error("Ollama API error:", errText);
-      return { advice: "", recommendedPrograms: [] };
-    }
-
-    const data = (await response.json()) as { response?: string };
-    const advice = sanitizeResponseStyle(
-      sanitizeCutoffMentionsInText((data.response || "").trim())
+    const advice = sanitizeResponseStyle(sanitizeCutoffMentionsInText(raw));
+    const recommendedPrograms = extractProgramsFromAiText(
+      advice,
+      programs.map(p => ({ programName: p.programName, schoolName: p.schoolName }))
     );
-    const recommendedPrograms = extractProgramsFromAiText(advice, allDbPrograms);
 
-    return { advice, recommendedPrograms };
+    return { advice, recommendedPrograms, enginePayload: payload };
   } catch (error) {
     console.error("AI advice generation failed:", error);
-    return { advice: "", recommendedPrograms: [] };
+    return { advice: "", recommendedPrograms: [], enginePayload: payload };
   }
 }

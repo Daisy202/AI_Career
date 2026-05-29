@@ -75,6 +75,12 @@ const statements = [
     acronyms TEXT NOT NULL,
     created_at INTEGER NOT NULL DEFAULT (unixepoch())
   )`,
+  `CREATE TABLE IF NOT EXISTS system_settings (
+    id INTEGER PRIMARY KEY,
+    ai_mode TEXT NOT NULL DEFAULT 'offline',
+    updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
+    updated_by_user_id INTEGER
+  )`,
   `CREATE TABLE IF NOT EXISTS university_programs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     school_name TEXT NOT NULL,

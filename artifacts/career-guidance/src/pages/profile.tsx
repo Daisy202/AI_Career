@@ -1,6 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useCareerStore } from "@/store/use-career-store";
-import { Card, Button, Input, Label, Textarea } from "@/components/ui-elements";
+import { Card, Button, Input, Label, Textarea, Checkbox } from "@/components/ui-elements";
+import {
+  A_LEVEL_SUBJECT_GROUPS,
+  O_LEVEL_SUBJECT_GROUPS,
+  type SubjectGroup,
+} from "@workspace/zimsec-subjects";
 
 function csvToArray(value: string): string[] {
   return value
@@ -18,8 +23,8 @@ export default function ProfilePage() {
 
   const [interests, setInterests] = useState("");
   const [strengths, setStrengths] = useState("");
-  const [subjects, setSubjects] = useState("");
-  const [oLevelSubjects, setOLevelSubjects] = useState("");
+  const [subjects, setSubjects] = useState<string[]>([]);
+  const [oLevelSubjects, setOLevelSubjects] = useState<string[]>([]);
   const [personalityType, setPersonalityType] = useState("");
   const [hobbies, setHobbies] = useState("");
   const [cutOffPoints, setCutOffPoints] = useState<string>("");
@@ -35,8 +40,8 @@ export default function ProfilePage() {
         setProfile(data);
         setInterests((data.interests ?? []).join(", "));
         setStrengths((data.strengths ?? []).join(", "));
-        setSubjects((data.subjects ?? []).join(", "));
-        setOLevelSubjects((data.oLevelSubjects ?? []).join(", "));
+        setSubjects((data.subjects ?? []) as string[]);
+        setOLevelSubjects((data.oLevelSubjects ?? []) as string[]);
         setPersonalityType(data.personalityType ?? "");
         setHobbies((data.hobbies ?? []).join(", "));
         setCutOffPoints(data.cutOffPoints != null ? String(data.cutOffPoints) : "");
@@ -52,8 +57,8 @@ export default function ProfilePage() {
     const payload = {
       interests: csvToArray(interests),
       strengths: csvToArray(strengths),
-      subjects: csvToArray(subjects),
-      oLevelSubjects: csvToArray(oLevelSubjects),
+      subjects,
+      oLevelSubjects,
       personalityType: personalityType || null,
       hobbies: csvToArray(hobbies),
       cutOffPoints: cutOffPoints ? Number(cutOffPoints) : null,
@@ -72,7 +77,20 @@ export default function ProfilePage() {
       if (!res.ok) {
         setMessage(data?.error ?? "Failed to save profile");
       } else {
-        setProfile(payload);
+        const saved = {
+          interests: data.interests ?? payload.interests,
+          strengths: data.strengths ?? payload.strengths,
+          subjects: (data.subjects ?? payload.subjects) as string[],
+          oLevelSubjects: (data.oLevelSubjects ?? payload.oLevelSubjects) as string[],
+          personalityType: data.personalityType ?? payload.personalityType,
+          hobbies: data.hobbies ?? payload.hobbies,
+          cutOffPoints: data.cutOffPoints ?? payload.cutOffPoints,
+          oLevelPasses: data.oLevelPasses ?? payload.oLevelPasses,
+          aLevelPasses: data.aLevelPasses ?? payload.aLevelPasses,
+        };
+        setSubjects(saved.subjects);
+        setOLevelSubjects(saved.oLevelSubjects);
+        setProfile(saved);
         setMessage("Profile updated successfully.");
       }
     } catch {
@@ -97,12 +115,20 @@ export default function ProfilePage() {
             <Textarea value={strengths} onChange={(e) => setStrengths(e.target.value)} />
           </div>
           <div className="space-y-2">
-            <Label>A-Level Subjects (comma-separated)</Label>
-            <Input value={subjects} onChange={(e) => setSubjects(e.target.value)} />
+            <Label>A-Level Subjects (select)</Label>
+            <GroupedSubjectPicker
+              groups={A_LEVEL_SUBJECT_GROUPS as SubjectGroup[]}
+              value={subjects}
+              onChange={setSubjects}
+            />
           </div>
           <div className="space-y-2">
-            <Label>O-Level Subjects (comma-separated)</Label>
-            <Input value={oLevelSubjects} onChange={(e) => setOLevelSubjects(e.target.value)} />
+            <Label>O-Level Subjects (select)</Label>
+            <GroupedSubjectPicker
+              groups={O_LEVEL_SUBJECT_GROUPS as SubjectGroup[]}
+              value={oLevelSubjects}
+              onChange={setOLevelSubjects}
+            />
           </div>
           <div className="space-y-2">
             <Label>Personality Type</Label>
@@ -133,6 +159,50 @@ export default function ProfilePage() {
         </Card>
         {profile ? null : <p className="text-xs text-muted-foreground mt-4">Complete and save your profile to improve recommendations.</p>}
       </div>
+    </div>
+  );
+}
+
+function GroupedSubjectPicker(props: {
+  groups: SubjectGroup[];
+  value: string[];
+  onChange: (next: string[]) => void;
+}) {
+  const { groups, value, onChange } = props;
+  const selected = useMemo(() => new Set(value), [value]);
+
+  return (
+    <div className="space-y-4">
+      {groups.map((g) => (
+        <div key={g.label}>
+          <p className="text-xs font-semibold text-muted-foreground mb-2">{g.label}</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {g.subjects.map((s) => {
+              const checked = selected.has(s);
+              return (
+                <Label
+                  key={s}
+                  className={`flex items-center gap-3 p-2 rounded-lg border cursor-pointer ${
+                    checked ? "border-primary bg-primary/5" : "border-border hover:bg-muted/40"
+                  }`}
+                >
+                  <Checkbox
+                    checked={checked}
+                    onChange={(e) => {
+                      if (e.target.checked) onChange([...value, s]);
+                      else onChange(value.filter((x) => x !== s));
+                    }}
+                  />
+                  <span className="text-sm">{s}</span>
+                </Label>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+      <p className="text-xs text-muted-foreground">
+        Selecting subjects prevents spelling errors so matching works reliably.
+      </p>
     </div>
   );
 }

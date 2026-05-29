@@ -1,4 +1,4 @@
-import { db, universityProgramsTable } from "@workspace/db";
+import { db, universityProgramsTable, careersTable } from "@workspace/db";
 import { extractProgramsFromAiText } from "./aiAdvice.js";
 import { findUniversitiesInText, resolveUniversityName } from "./universities.js";
 import {
@@ -9,6 +9,13 @@ import {
   ZIMSEC_GRADING_EXPLANATION,
 } from "./zimsecPoints.js";
 import { determineStudentTier, programTypePriority } from "./studentTier.js";
+import { programMeetsRequiredSubjects } from "./subjectGate.js";
+import { subjectAlias } from "./subjectMatch.js";
+import {
+  buildAiRecommendationPayload,
+  payloadToPromptBlock,
+} from "./programRecommendationEngine.js";
+import { normalizeSubjectList } from "./subjectMatch.js";
 
 export interface DbProgramRow {
   programName: string;
@@ -18,6 +25,15 @@ export interface DbProgramRow {
   requiredSubjects: string[];
   minRequiredSubjects: number | null;
   careerCategory: string | null;
+}
+
+export interface CareerRow {
+  name: string;
+  description: string;
+  category: string;
+  aLevelSubjects: string[];
+  averageSalary: string;
+  jobOutlook: string;
 }
 
 export async function loadAllPrograms(): Promise<DbProgramRow[]> {
@@ -33,25 +49,77 @@ export async function loadAllPrograms(): Promise<DbProgramRow[]> {
   }));
 }
 
+export async function loadCareersForChat(): Promise<CareerRow[]> {
+  const rows = await db.select().from(careersTable);
+  return rows.map(r => ({
+    name: r.name,
+    description: r.description,
+    category: r.category,
+    aLevelSubjects: r.aLevelSubjects ?? [],
+    averageSalary: r.averageSalary,
+    jobOutlook: r.jobOutlook,
+  }));
+}
+
 const TOPIC_FILTERS: Array<{ keys: string[]; match: (p: DbProgramRow) => boolean }> = [
   {
-    keys: ["medicine", "doctor", "mbchb", "medical", "surgery", "healthcare", "nursing"],
+    keys: ["medicine", "doctor", "mbchb", "medical", "surgery", "healthcare", "nursing", "pharmacy"],
     match: p =>
       (p.careerCategory ?? "").toLowerCase().includes("health") ||
-      p.programName.toLowerCase().includes("medicine") ||
-      p.programName.toLowerCase().includes("nursing"),
+      /medicine|nursing|health|pharmacy|clinical/i.test(p.programName),
   },
   {
-    keys: ["engineer", "engineering"],
+    keys: ["engineer", "engineering", "civil", "mechanical", "electrical", "mining"],
     match: p =>
       (p.careerCategory ?? "").toLowerCase().includes("engineer") ||
       p.programName.toLowerCase().includes("engineer"),
   },
   {
-    keys: ["law", "lawyer", "llb"],
+    keys: ["law", "lawyer", "llb", "legal"],
     match: p =>
       (p.careerCategory ?? "").toLowerCase().includes("law") ||
       p.programName.toLowerCase().includes("law"),
+  },
+  {
+    keys: ["account", "commerce", "business", "finance", "marketing", "entrepreneur"],
+    match: p =>
+      (p.careerCategory ?? "").toLowerCase().includes("business") ||
+      /account|commerce|business|finance|marketing|management/i.test(p.programName),
+  },
+  {
+    keys: ["software", "computer", "programming", "ict", "cyber", "data science", "developer"],
+    match: p =>
+      (p.careerCategory ?? "").toLowerCase().includes("technology") ||
+      /computer|software|information|cyber|data|ict/i.test(p.programName),
+  },
+  {
+    keys: ["teach", "education", "teacher", "bed"],
+    match: p =>
+      (p.careerCategory ?? "").toLowerCase().includes("education") ||
+      p.programName.toLowerCase().includes("education"),
+  },
+  {
+    keys: ["agriculture", "farming", "agronomy", "veterinary"],
+    match: p =>
+      (p.careerCategory ?? "").toLowerCase().includes("agriculture") ||
+      /agriculture|agri|animal|crop/i.test(p.programName),
+  },
+  {
+    keys: ["journalism", "media", "communication", "graphic", "film"],
+    match: p =>
+      /media|journalism|communication|graphic|film|radio/i.test(p.programName) ||
+      (p.careerCategory ?? "").toLowerCase().includes("media"),
+  },
+  {
+    keys: ["tourism", "hospitality", "hotel"],
+    match: p => /tourism|hospitality|hotel/i.test(p.programName),
+  },
+  {
+    keys: ["polytechnic", "hexco", "tvet", "diploma", "certificate", "welding", "automotive"],
+    match: p => {
+      const t = (p.programType ?? "degree").toLowerCase();
+      return t === "diploma" || t === "certificate" || /welding|automotive|trade/i.test(p.programName);
+    },
   },
 ];
 
@@ -69,7 +137,8 @@ function programsForMessageTopic(message: string, programs: DbProgramRow[]): DbP
 function scoreProgramRelevance(
   program: DbProgramRow,
   messageLower: string,
-  studentSubjectsLower: string[]
+  studentSubjectsLower: string[],
+  studentOLevelLower: string[] = []
 ): number {
   let score = 0;
   const name = program.programName.toLowerCase();
@@ -79,10 +148,14 @@ function scoreProgramRelevance(
   if (messageLower.includes(category) && category) score += 5;
   if (messageLower.includes(school)) score += 4;
   if (studentSubjectsLower.length > 0) {
-    const subjectHits = (program.requiredSubjects ?? []).filter(req =>
-      studentSubjectsLower.some(s => s.includes(req.toLowerCase()) || req.toLowerCase().includes(s))
-    ).length;
-    score += subjectHits * 3;
+    const meetsSubjects = programMeetsRequiredSubjects(
+      program.requiredSubjects,
+      program.minRequiredSubjects,
+      studentSubjectsLower,
+      studentOLevelLower
+    );
+    if (meetsSubjects) score += 25;
+    else score -= 12;
   }
   if ((program.programName || "").toLowerCase().includes("diploma")) score += 1;
   return score;
@@ -105,9 +178,17 @@ export async function buildChatDbContext(
   message: string,
   studentSubjects?: string[],
   conversationText?: string,
-  studentProfile?: { cutOffPoints?: number | null }
+  studentProfile?: {
+    cutOffPoints?: number | null;
+    oLevelSubjects?: string[];
+    interests?: string[];
+    strengths?: string[];
+    personalityType?: string | null;
+  }
 ): Promise<string> {
   const programs = await loadAllPrograms();
+  const aLevelSubjects = normalizeSubjectList(studentSubjects ?? []);
+  const oLevelSubjects = normalizeSubjectList(studentProfile?.oLevelSubjects ?? []);
   const topicText = conversationText ?? message;
   const mentionedSchools = await findUniversitiesInText(message);
   const resolved = await resolveUniversityName(message);
@@ -141,28 +222,31 @@ export async function buildChatDbContext(
     }
   }
 
-  if (studentSubjects && studentSubjects.length > 0 && relevant.length > 40) {
-    const subLower = studentSubjects.map(s => s.toLowerCase());
-    relevant = relevant
-      .filter(p =>
-        p.requiredSubjects.length === 0 ||
-        p.requiredSubjects.some(req =>
-          subLower.some(s => s.includes(req.toLowerCase()) || req.toLowerCase().includes(s))
-        )
-      )
-      .slice(0, 25);
-  }
-
   const messageLower = message.toLowerCase();
-  const studentSubjectsLower = (studentSubjects ?? []).map(s => s.toLowerCase());
+  const studentSubjectsLower = aLevelSubjects.map(s => s.toLowerCase());
+  const studentOLevelLower = oLevelSubjects.map(s => s.toLowerCase());
+
+  if (studentSubjectsLower.length > 0 && relevant.length > 0) {
+    const subjectQualified = relevant.filter(p =>
+      programMeetsRequiredSubjects(
+        p.requiredSubjects,
+        p.minRequiredSubjects,
+        aLevelSubjects,
+        oLevelSubjects
+      )
+    );
+    if (subjectQualified.length > 0) {
+      relevant = subjectQualified;
+    }
+  }
   const tier = determineStudentTier({
-    aLevelSubjects: studentSubjects ?? [],
+    aLevelSubjects,
     cutOffPoints: studentProfile?.cutOffPoints ?? undefined,
   });
   const ranked = [...relevant].sort((a, b) => {
     const relevanceDelta =
-      scoreProgramRelevance(b, messageLower, studentSubjectsLower) -
-      scoreProgramRelevance(a, messageLower, studentSubjectsLower);
+      scoreProgramRelevance(b, messageLower, studentSubjectsLower, studentOLevelLower) -
+      scoreProgramRelevance(a, messageLower, studentSubjectsLower, studentOLevelLower);
     if (relevanceDelta !== 0) return relevanceDelta;
     return programTypePriority(a.programType, tier) - programTypePriority(b.programType, tier);
   });
@@ -190,41 +274,16 @@ export async function buildChatDbContext(
     index++;
   }
 
-  const slice = diversified.slice(0, 80);
-  if (slice.length === 0) return "";
-
-  const lines = slice.map(p => {
-    const pts =
-      p.minimumPoints != null
-        ? `cut-off ≤${p.minimumPoints} pts`
-        : "no cut-off on file";
-    const subs =
-      p.requiredSubjects.length > 0
-        ? `A-Level: ${p.requiredSubjects.join(", ")}`
-        : "no A-Level required";
-    return `- **${p.programName}** @ ${p.schoolName} (${pts}; ${subs})`;
+  const payload = buildAiRecommendationPayload(programs, {
+    subjects: aLevelSubjects,
+    oLevelSubjects,
+    cutOffPoints: studentProfile?.cutOffPoints ?? null,
+    interests: studentProfile?.interests ?? [],
+    strengths: studentProfile?.strengths ?? [],
+    personalityType: studentProfile?.personalityType,
   });
 
-  const topicLine = topicText.match(/\b(medicine|doctor|mbchb)\b/i)
-    ? "\nCONVERSATION TOPIC: Medicine — stay on medicine/healthcare only; do NOT suggest agriculture or unrelated careers.\n"
-    : "";
-
-  const coverage = `Coverage: ${new Set(slice.map(s => s.schoolName)).size} school(s), ${new Set(slice.map(s => s.careerCategory ?? "Uncategorized")).size} category(ies), ${slice.length} program(s) shown.`;
-  const tierInstruction =
-    tier === "certificate_diploma"
-      ? "STUDENT TIER: Certificate/Diploma first. Prioritize certificate and diploma guidance before degrees."
-      : tier === "degree_first"
-      ? "STUDENT TIER: Degree first. Prioritize degree options, then include diploma/certificate alternatives."
-      : "STUDENT TIER: Mixed low-points profile. Prioritize low-threshold degree options and encourage diploma pathways for higher enrollment chances.";
-
-  return `
-
-${ZIMSEC_GRADING_EXPLANATION}
-${topicLine}
-${coverage}
-${tierInstruction}
-VERIFIED DATABASE PROGRAMS (you MUST use these for subject and cut-off answers; never refuse A-Level requirement questions):
-${lines.join("\n")}`;
+  return `\n\nAI_GROUNDED_CONTEXT_JSON:\n${payloadToPromptBlock(payload)}`;
 }
 
 export function enrichChatResponse(

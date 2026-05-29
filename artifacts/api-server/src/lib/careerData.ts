@@ -1,3 +1,10 @@
+import {
+  countSubjectMatches,
+  getCareerRequiredSubjects,
+  meetsCareerSubjectGate,
+  minCareerSubjectMatches,
+} from "./subjectGate.js";
+
 export interface CareerData {
   id: number;
   name: string;
@@ -202,16 +209,26 @@ export function recommendCareers(profile: {
     let score = 0;
     const reasons: string[] = [];
 
-    // Match subjects - best fit requires ≥2 A-Level and ≥5 O-Level
-    const subjectMatches = career.aLevelSubjects.filter(sub =>
-      (profile.subjects ?? []).some(s => s.toLowerCase().includes(sub.toLowerCase()) || sub.toLowerCase().includes(s.toLowerCase()))
-    );
-    if (subjectMatches.length > 0) {
-      score += subjectMatches.length * 15;
+    const subjectGate = meetsCareerSubjectGate(career, profile);
+    const careerReqs = getCareerRequiredSubjects(career);
+    const subjectMatches = countSubjectMatches(careerReqs, profile.subjects ?? []);
+
+    if (!subjectGate) {
+      return {
+        career,
+        matchPercentage: 0,
+        matchReasons: [] as string[],
+        demandLevel: "Low" as const,
+      };
     }
-    const aLevelList = (profile.subjects ?? []).slice(0, 4).join(", ");
-    const oLevelList = (profile.oLevelSubjects ?? []).slice(0, 6).join(", ");
-    const careerReqs = career.aLevelSubjects.filter(s => !/any|relevant|combination/i.test(s));
+
+    const minCareerMatches = minCareerSubjectMatches(careerReqs);
+    if (subjectMatches > 0) {
+      score += subjectMatches * 20;
+      if (subjectMatches >= minCareerMatches) score += 25;
+    }
+    const aLevelList = (profile.subjects ?? []).join(", ");
+    const oLevelList = (profile.oLevelSubjects ?? []).join(", ");
     const careerALevelReq = (careerReqs.length > 0 ? careerReqs : ["Mathematics", "English"]).slice(0, 3).join(", ");
     const oLevelExample = oLevelList || "English, Mathematics, Science";
 
@@ -223,7 +240,7 @@ export function recommendCareers(profile: {
       reasons.push(`With at least 2 A-Level subjects (e.g. ${careerALevelReq || "Mathematics, Physics"}) and 5 O-Level subjects (e.g. ${oLevelExample}), you could qualify for programs in this field`);
     }
 
-    // Match interests to category - weight interests strongly (people may have different interests than subjects)
+    // Interests only refine ranking after required subjects match
     const categoryToInterest: Record<string, string[]> = {
       "Technology": ["technology", "tech", "it", "ict", "computing", "programming", "software", "data"],
       "Business & Finance": ["business", "finance", "commerce", "accounting", "entrepreneurship"],
@@ -241,14 +258,11 @@ export function recommendCareers(profile: {
       const aliases = categoryToInterest[career.category];
       return aliases?.some(a => il.includes(a) || a.includes(il)) ?? false;
     });
-    if (interestMatch) {
-      score += 35;
-      if (!reasons.some(r => r.includes("interest"))) {
-        reasons.push(`Your interest in ${career.category} aligns with this field`);
-      }
+    if (interestMatch && subjectGate) {
+      score += 8;
     }
 
-    // O-Level subject keywords match (for students without A-Level - interests can differ from subjects)
+    // O-Level subject keywords (no A-Level yet)
     if (aLevelCount === 0 && oLevelCount >= 5) {
       const oLevelTerms = (profile.oLevelSubjects ?? []).map(s => s.toLowerCase());
       const keywordMatches = career.keywords.filter(k =>
@@ -274,17 +288,14 @@ export function recommendCareers(profile: {
       reasons.push(`Diploma/polytechnic programs in ${career.category} are also an option—no A-Level required, shorter duration`);
     }
 
-    // Match strengths to required skills
     const skillMatches = career.requiredSkills.filter(skill =>
       profile.strengths.some(s => skill.toLowerCase().includes(s.toLowerCase()) || s.toLowerCase().includes(skill.toLowerCase()))
     );
-    if (skillMatches.length > 0) {
-      score += skillMatches.length * 10;
-      reasons.push(`Your strengths align with key skills: ${skillMatches.slice(0, 3).join(", ")}`);
+    if (skillMatches.length > 0 && subjectGate) {
+      score += Math.min(skillMatches.length * 3, 9);
     }
 
-    // Personality type matching (Holland theory)
-    if (profile.personalityType) {
+    if (profile.personalityType && subjectGate) {
       const pt = profile.personalityType.toLowerCase();
       if (
         (pt === "realistic" && ["Engineering", "Agriculture"].includes(career.category)) ||
@@ -318,7 +329,9 @@ export function recommendCareers(profile: {
     return { career, matchPercentage, matchReasons: reasons, demandLevel };
   });
 
-  let filtered = scores.filter(s => s.matchPercentage > 10);
+  let filtered = scores.filter(
+    s => s.matchPercentage > 10 && meetsCareerSubjectGate(s.career, profile)
+  );
 
   // O-Level only with 5+ passes: ensure at least 2 diploma paths are shown (no A-Level required)
   if (aLevelCount === 0 && oLevelCount >= 5) {
@@ -327,7 +340,7 @@ export function recommendCareers(profile: {
     for (const id of diplomaIds) {
       if (includedIds.has(id)) continue;
       const s = scores.find(x => x.career.id === id);
-      if (s) {
+      if (s && meetsCareerSubjectGate(s.career, profile)) {
         filtered.push({
           ...s,
           matchPercentage: Math.max(s.matchPercentage, 40),
@@ -339,7 +352,25 @@ export function recommendCareers(profile: {
     }
   }
 
-  const sorted = filtered.sort((a, b) => b.matchPercentage - a.matchPercentage);
+  const interestTerms = profile.interests.map(i => i.toLowerCase());
+  const careerInterestScore = (career: CareerData): number => {
+    const cat = career.category.toLowerCase();
+    const keywords = career.keywords.map(k => k.toLowerCase());
+    return interestTerms.some(
+      t =>
+        cat.includes(t) ||
+        t.includes(cat.split(" ")[0] ?? "") ||
+        keywords.some(k => k.includes(t) || t.includes(k))
+    )
+      ? 1
+      : 0;
+  };
+
+  const sorted = filtered.sort((a, b) => {
+    const interestDelta = careerInterestScore(b.career) - careerInterestScore(a.career);
+    if (interestDelta !== 0) return interestDelta;
+    return b.matchPercentage - a.matchPercentage;
+  });
   const diversified: typeof sorted = [];
   const seenCategory = new Set<string>();
 

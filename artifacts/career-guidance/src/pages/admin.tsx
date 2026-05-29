@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { ShieldAlert, Plus, Upload, BarChart3, MessageSquare, FileText, Pencil, Trash2 } from "lucide-react";
+import { ShieldAlert, Plus, Upload, BarChart3, MessageSquare, FileText, Pencil, Trash2, Settings } from "lucide-react";
 import type { UniversityProgram } from "@workspace/api-client-react";
 import { Button, Card, Input, Label, Textarea, Badge } from "@/components/ui-elements";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -59,6 +59,13 @@ export default function AdminPage() {
   const [feedbacks, setFeedbacks] = useState<{ id: number; userId?: number; rating: number; comment?: string; careerName?: string; helpful: string; createdAt: string }[]>([]);
   const [fileLogs, setFileLogs] = useState<{ entries: Array<{ timestamp: string; log_type: string; severity: string; user_id?: number | null; message: string; details?: unknown }>; total: number }>({ entries: [], total: 0 });
   const [fileLogType, setFileLogType] = useState<string>("all");
+  const [aiSettings, setAiSettings] = useState<{
+    aiMode: "offline" | "online";
+    onlineConfigured: boolean;
+    offlineModel: string;
+    onlineModel: string;
+  } | null>(null);
+  const [aiModeSaving, setAiModeSaving] = useState(false);
 
   useEffect(() => {
     if (!user || user.role !== "admin") return;
@@ -74,7 +81,39 @@ export default function AdminPage() {
       .then((r) => r.ok ? r.json() : [])
       .then(setFeedbacks)
       .catch(() => setFeedbacks([]));
+    fetch("/api/admin/settings", { credentials: "include" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then(setAiSettings)
+      .catch(() => setAiSettings(null));
   }, [user]);
+
+  const saveAiMode = async (mode: "offline" | "online") => {
+    setAiModeSaving(true);
+    try {
+      const res = await fetch("/api/admin/settings", {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ aiMode: mode }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast({
+          title: "Could not update AI mode",
+          description: data.error || "Request failed",
+          variant: "destructive",
+        });
+        return;
+      }
+      setAiSettings(data);
+      toast({
+        title: "AI mode updated",
+        description: mode === "offline" ? "Using local Ollama." : "Using GitHub Models (online).",
+      });
+    } finally {
+      setAiModeSaving(false);
+    }
+  };
 
   useEffect(() => {
     if (!user || user.role !== "admin") return;
@@ -275,7 +314,62 @@ export default function AdminPage() {
             <TabsTrigger value="file-logs" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary">
               <FileText className="w-4 h-4 mr-2" /> File Logs
             </TabsTrigger>
+            <TabsTrigger value="ai-settings" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary">
+              <Settings className="w-4 h-4 mr-2" /> AI Settings
+            </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="ai-settings">
+            <Card className="p-6 max-w-xl">
+              <h2 className="text-xl font-semibold mb-2">AI provider</h2>
+              <p className="text-sm text-muted-foreground mb-6">
+                Choose how chat and career advice call the model. This setting is saved in the database and applies to all users.
+              </p>
+              {aiSettings ? (
+                <div className="space-y-4">
+                  <div>
+                    <Label>Mode</Label>
+                    <Select
+                      value={aiSettings.aiMode}
+                      onValueChange={(v) => saveAiMode(v as "offline" | "online")}
+                      disabled={aiModeSaving}
+                    >
+                      <SelectTrigger className="mt-1">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="offline">Offline — Ollama (local)</SelectItem>
+                        <SelectItem value="online" disabled={!aiSettings.onlineConfigured}>
+                          Online — GitHub Models
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="text-sm space-y-1 text-muted-foreground">
+                    <p>
+                      <span className="font-medium text-foreground">Offline model:</span>{" "}
+                      {aiSettings.offlineModel}
+                    </p>
+                    <p>
+                      <span className="font-medium text-foreground">Online model:</span>{" "}
+                      {aiSettings.onlineModel}
+                    </p>
+                    {!aiSettings.onlineConfigured && (
+                      <p className="text-amber-700 dark:text-amber-400">
+                        Online mode needs <code className="text-xs">ONLINE_API_KEY</code> or{" "}
+                        <code className="text-xs">online_apikey</code> in the server <code className="text-xs">.env</code>.
+                      </p>
+                    )}
+                  </div>
+                  <Badge variant={aiSettings.aiMode === "online" ? "default" : "secondary"}>
+                    Active: {aiSettings.aiMode === "online" ? "GitHub Models" : "Ollama"}
+                  </Badge>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">Loading settings…</p>
+              )}
+            </Card>
+          </TabsContent>
 
           <TabsContent value="programs">
             <Card className="p-6 overflow-x-auto">
@@ -595,7 +689,7 @@ export default function AdminPage() {
           <TabsContent value="file-logs">
             <Card className="p-6">
               <h2 className="text-lg font-bold mb-4 flex items-center"><FileText className="w-5 h-5 mr-2" /> Structured File Logs</h2>
-              <p className="text-sm text-muted-foreground mb-4">Prediction, user activity, auth, errors, admin actions. Pretty-printed in data/logs/AICareer.logs</p>
+              <p className="text-sm text-muted-foreground mb-4">Prediction, chat (handler + message preview), AI inference, user activity, auth, errors, admin actions. File: data/logs/AICareer.logs</p>
               <div className="flex gap-2 mb-4">
                 <Select value={fileLogType} onValueChange={setFileLogType}>
                   <SelectTrigger className="w-48 bg-card border-border shadow-sm">
@@ -608,6 +702,8 @@ export default function AdminPage() {
                     <SelectItem value="auth">Auth</SelectItem>
                     <SelectItem value="error">Error</SelectItem>
                     <SelectItem value="api">API</SelectItem>
+                    <SelectItem value="ai_inference">AI Inference</SelectItem>
+                    <SelectItem value="chat">Chat</SelectItem>
                     <SelectItem value="admin">Admin</SelectItem>
                     <SelectItem value="system">System</SelectItem>
                   </SelectContent>

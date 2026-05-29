@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { requireAuth } from "../lib/auth.js";
 import { fileLogger } from "../lib/fileLogger.js";
 import { normalizeZimsecCutoff } from "../lib/zimsecPoints.js";
+import { normalizeSubjectList } from "../lib/subjectMatch.js";
 
 const router: IRouter = Router();
 
@@ -49,8 +50,8 @@ router.put("/profile", requireAuth, async (req, res): Promise<void> => {
 
   const interests = body.interests ?? [];
   const strengths = body.strengths ?? [];
-  const subjects = body.subjects ?? [];
-  const oLevelSubjects = body.oLevelSubjects ?? [];
+  const subjects = normalizeSubjectList(body.subjects ?? []);
+  const oLevelSubjects = normalizeSubjectList(body.oLevelSubjects ?? []);
   const hasALevelSubjects = subjects.length > 0;
   const hasCutoff = body.cutOffPoints !== null && body.cutOffPoints !== undefined;
 
@@ -99,7 +100,7 @@ router.put("/profile", requireAuth, async (req, res): Promise<void> => {
     details: { hasOLevel: data.oLevelSubjects.length, hasALevel: data.subjects.length },
   });
 
-  res.json({ message: "Profile saved" });
+  res.json({ message: "Profile saved", ...data });
 });
 
 export default router;

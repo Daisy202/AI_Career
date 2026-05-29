@@ -11,6 +11,7 @@ import {
 import { eq } from "drizzle-orm";
 import { CAREERS, recommendCareers } from "../lib/careerData.js";
 import { generateCareerAdvice } from "../lib/aiAdvice.js";
+import { getActiveAiMode } from "../lib/aiProvider.js";
 import { fileLogger } from "../lib/fileLogger.js";
 import { requireAuth } from "../lib/auth.js";
 import {
@@ -19,7 +20,20 @@ import {
   normalizeZimsecCutoff,
 } from "../lib/zimsecPoints.js";
 import { subjectAlias } from "../lib/subjectMatch.js";
+import {
+  countSubjectMatches,
+  getCareerRequiredSubjects,
+  meetsCareerSubjectGate,
+  minCareerSubjectMatches,
+} from "../lib/subjectGate.js";
+import { normalizeSubjectList } from "../lib/subjectMatch.js";
 import { determineStudentTier, programTypePriority } from "../lib/studentTier.js";
+import {
+  buildAiRecommendationPayload,
+  mergeExplorePrograms,
+  programQualifiesBySubjects,
+} from "../lib/programRecommendationEngine.js";
+import type { DbProgramRow } from "../lib/chatDbContext.js";
 
 const router: IRouter = Router();
 
@@ -66,18 +80,32 @@ router.post("/recommend", requireAuth, async (req, res): Promise<void> => {
     return;
   }
 
-  const oLevelSubjects = parsed.data.oLevelSubjects ?? [];
+  const oLevelSubjects = normalizeSubjectList(parsed.data.oLevelSubjects ?? []);
+  const aLevelSubjects = normalizeSubjectList(parsed.data.subjects ?? []);
   const studentOLevelLower = oLevelSubjects.map((s: string) => s.toLowerCase().trim());
 
-  const recommendations = recommendCareers({
+  const studentSubjectsLower = aLevelSubjects.map((s: string) => String(s).toLowerCase().trim());
+  const hasSubjectProfile =
+    studentSubjectsLower.length > 0 || studentOLevelLower.length >= 5;
+
+  const rawRecommendations = recommendCareers({
     ...parsed.data,
+    subjects: aLevelSubjects,
     oLevelSubjects,
     oLevelPasses: parsed.data.oLevelPasses ?? null,
     aLevelPasses: parsed.data.aLevelPasses ?? null,
   });
-  const studentSubjectsLower = (parsed.data.subjects ?? []).map((s: string) => String(s).toLowerCase().trim());
+
+  const recommendations = hasSubjectProfile
+    ? rawRecommendations.filter(r =>
+        meetsCareerSubjectGate(r.career, {
+          subjects: aLevelSubjects,
+          oLevelSubjects,
+        })
+      )
+    : rawRecommendations;
   const cutOffPoints = normalizeZimsecCutoff(parsed.data.cutOffPoints ?? undefined);
-  if ((parsed.data.subjects?.length ?? 0) > 0 && cutOffPoints == null) {
+  if (aLevelSubjects.length > 0 && cutOffPoints == null) {
     res.status(400).json({ error: "A-Level students must provide cut-off points (1-15)." });
     return;
   }
@@ -86,9 +114,19 @@ router.post("/recommend", requireAuth, async (req, res): Promise<void> => {
 
   const allPrograms = await db.select().from(universityProgramsTable).orderBy(universityProgramsTable.schoolName);
   const studentTier = determineStudentTier({
-    aLevelSubjects: parsed.data.subjects ?? [],
+    aLevelSubjects,
     cutOffPoints,
   });
+
+  const dbProgramRows: DbProgramRow[] = allPrograms.map(p => ({
+    programName: p.programName,
+    schoolName: p.schoolName,
+    programType: p.programType,
+    minimumPoints: p.minimumPoints,
+    requiredSubjects: p.requiredSubjects ?? [],
+    minRequiredSubjects: p.minRequiredSubjects,
+    careerCategory: p.careerCategory,
+  }));
 
   const result = recommendations.map(r => {
     const relevantPrograms = allPrograms.filter(p =>
@@ -97,23 +135,53 @@ router.post("/recommend", requireAuth, async (req, res): Promise<void> => {
     );
 
     const isOLevelOnly = studentSubjectsLower.length === 0;
+    const careerReqs = getCareerRequiredSubjects(r.career);
+    const careerALevelMatches = countSubjectMatches(careerReqs, aLevelSubjects);
+    const minCareerMatches = minCareerSubjectMatches(careerReqs);
+
     const mapped = relevantPrograms.map(program => {
       const isDiploma = (program.programType || "degree") === "diploma";
       const requiredALevel = program.requiredSubjects ?? [];
       const requiredOLevel = program.requiredOLevelSubjects ?? [];
       const minRequired = program.minRequiredSubjects ?? requiredALevel.length;
 
-      const matchedALevelCount = requiredALevel.filter((required: string) =>
-        studentSubjectsLower.some((s: string) => s.includes(required.toLowerCase()) || required.toLowerCase().includes(s) || subjectAlias(s, required.toLowerCase()))
-      ).length;
-      const qualifiesByALevel = isDiploma ? true : matchedALevelCount >= minRequired;
+      const programRow: DbProgramRow = {
+        programName: program.programName,
+        schoolName: program.schoolName,
+        programType: program.programType,
+        minimumPoints: program.minimumPoints,
+        requiredSubjects: requiredALevel,
+        minRequiredSubjects: program.minRequiredSubjects,
+        careerCategory: program.careerCategory,
+      };
 
-      const missingALevel = qualifiesByALevel ? [] : requiredALevel.filter((required: string) =>
-        !studentSubjectsLower.some((s: string) => s.includes(required.toLowerCase()) || required.toLowerCase().includes(s) || subjectAlias(s, required.toLowerCase()))
+      const qualifiesBySubjects = programQualifiesBySubjects(
+        programRow,
+        aLevelSubjects,
+        oLevelSubjects
       );
 
+      const matchedALevelCount = countSubjectMatches(requiredALevel, aLevelSubjects);
+      const missingALevel =
+        qualifiesBySubjects || isDiploma
+          ? []
+          : requiredALevel.filter((required: string) =>
+              !studentSubjectsLower.some(
+                (s: string) =>
+                  s.includes(required.toLowerCase()) ||
+                  required.toLowerCase().includes(s) ||
+                  subjectAlias(s, required.toLowerCase())
+              )
+            );
+
       const missingOLevel = requiredOLevel.filter((req: string) => !hasOLevelSubject(req, studentOLevelLower));
-      const qualifiesByOLevel = missingOLevel.length === 0;
+      const minO = program.minOLevelPasses ?? 5;
+      const oLevelReqMatches = countSubjectMatches(requiredOLevel, oLevelSubjects);
+      const qualifiesByOLevel =
+        requiredOLevel.length === 0 ||
+        oLevelReqMatches >= Math.min(2, requiredOLevel.length) ||
+        oLevelSubjects.length >= minO ||
+        (oLevelPasses != null && oLevelPasses >= minO);
 
       let meetsPointsRequirement: boolean | null = null;
       let pointsChance: "high" | "equal" | "low" | null = null;
@@ -122,7 +190,6 @@ router.post("/recommend", requireAuth, async (req, res): Promise<void> => {
         pointsChance = calculatePointsChance(cutOffPoints, program.minimumPoints);
       }
 
-      const minO = program.minOLevelPasses ?? 5;
       const minA = program.minALevelPasses ?? (isDiploma ? 0 : 2);
       let meetsOLevelCount: boolean | null = null;
       let meetsALevelCount: boolean | null = null;
@@ -131,10 +198,19 @@ router.post("/recommend", requireAuth, async (req, res): Promise<void> => {
       if (aLevelPasses != null) meetsALevelCount = aLevelPasses >= minA;
       else if (isDiploma) meetsALevelCount = true;
 
+      const openEntryDiploma =
+        isDiploma && requiredALevel.length === 0 && (program.requiredSubjects ?? []).length === 0;
+      const matchesCareerSubjects =
+        careerReqs.length === 0 ||
+        careerALevelMatches >= minCareerMatches ||
+        (openEntryDiploma &&
+          countSubjectMatches(careerReqs, [...aLevelSubjects, ...oLevelSubjects]) >= minCareerMatches);
+
       // Points do NOT affect qualification - only subjects and pass counts
       const qualifies =
-        qualifiesByALevel &&
+        qualifiesBySubjects &&
         qualifiesByOLevel &&
+        matchesCareerSubjects &&
         (meetsOLevelCount !== false) &&
         (meetsALevelCount !== false);
 
@@ -186,13 +262,26 @@ router.post("/recommend", requireAuth, async (req, res): Promise<void> => {
       ? [...qualifyingDiplomas.slice(0, 5), ...qualifyingDegrees.slice(0, 5), ...nonQualifying].slice(0, 12)
       : sorted.slice(0, 10);
 
-    const qualifyingCount = matchedPrograms.filter((m: { qualifies: boolean }) => m.qualifies).length;
-    let matchPercentage = Math.max(r.matchPercentage, 30);
+    const substantiveQualifying = matchedPrograms.filter((m: { qualifies: boolean; program: { requiredSubjects?: string[] | null } }) => {
+      if (!m.qualifies) return false;
+      const req = m.program.requiredSubjects ?? [];
+      return req.length > 0 || careerALevelMatches >= minCareerMatches;
+    });
+    const qualifyingCount = substantiveQualifying.length;
+    let matchPercentage = qualifyingCount > 0 ? Math.max(r.matchPercentage, 30) : Math.min(r.matchPercentage, 25);
     if (qualifyingCount > 0) {
-      matchPercentage = Math.min(matchPercentage + qualifyingCount * 8, 95);
+      matchPercentage = Math.min(matchPercentage + qualifyingCount * 5, 88);
     }
 
-    let adviceReasons = r.matchReasons.length > 0 ? [...r.matchReasons] : ["If you have the required subjects or equivalent, you can pursue programs in this field"];
+    const subjectGatedReasons = r.matchReasons.filter(
+      reason => !/interest in|strengths align/i.test(reason) || qualifyingCount > 0
+    );
+    let adviceReasons =
+      subjectGatedReasons.length > 0
+        ? [...subjectGatedReasons]
+        : qualifyingCount > 0
+          ? ["Your subjects match programs in this field"]
+          : ["Add or improve required subjects to unlock stronger matches in this field"];
     if (studentTier === "certificate_diploma") {
       adviceReasons = [...adviceReasons, "Your current profile is diploma/certificate-first; these are prioritized for faster entry chances."];
     } else if (studentTier === "degree_first") {
@@ -228,8 +317,39 @@ router.post("/recommend", requireAuth, async (req, res): Promise<void> => {
     };
   });
 
-  // Generate AI advice using Ollama (profile + DB programs). Cross-reference with DB.
-  const allDbPrograms = allPrograms.map(p => ({ programName: p.programName, schoolName: p.schoolName }));
+  const userId = (req.session as { userId?: number })?.userId ?? null;
+  const activeAiMode = await getActiveAiMode();
+
+  const notEligibleCareers = result
+    .filter(r => !(r.matchedPrograms ?? []).some((m: { qualifies: boolean }) => m.qualifies))
+    .map(r => {
+      const missing = new Set<string>();
+      for (const m of r.matchedPrograms ?? []) {
+        if ((m as { qualifies?: boolean }).qualifies) continue;
+        for (const line of (m as { missingSubjects?: string[] }).missingSubjects ?? []) {
+          const a = line.match(/^A-Level:\s*(.+)$/);
+          if (a) missing.add(a[1].trim());
+        }
+      }
+      return { career: r.career.name, missingSubjects: [...missing].slice(0, 6) };
+    })
+    .filter(x => x.missingSubjects.length > 0)
+    .slice(0, 6);
+
+  const enginePayload = buildAiRecommendationPayload(
+    dbProgramRows,
+    {
+      subjects: aLevelSubjects,
+      oLevelSubjects,
+      cutOffPoints,
+      interests: parsed.data.interests,
+      strengths: parsed.data.strengths,
+      personalityType: parsed.data.personalityType,
+    },
+    notEligibleCareers
+  );
+  const explorePrograms = mergeExplorePrograms(enginePayload);
+
   let aiAdvice = "";
   let aiRecommendedPrograms: Array<{ programName: string; schoolName: string }> = [];
   try {
@@ -237,35 +357,14 @@ router.post("/recommend", requireAuth, async (req, res): Promise<void> => {
       {
         interests: parsed.data.interests,
         strengths: parsed.data.strengths,
-        subjects: parsed.data.subjects ?? [],
+        subjects: aLevelSubjects,
         oLevelSubjects,
         personalityType: parsed.data.personalityType,
+        cutOffPoints,
       },
-      result.map(r => {
-        const programs = (r.matchedPrograms ?? []).map((m: { program: { schoolName: string; programName: string; programType?: string; campus?: string; description?: string }; qualifies: boolean }) => ({
-          schoolName: m.program.schoolName,
-          programName: m.program.programName,
-          programType: m.program.programType,
-          campus: m.program.campus,
-          description: m.program.description,
-        }));
-        const qualifying = (r.matchedPrograms ?? [])
-          .filter((m: { qualifies: boolean }) => m.qualifies)
-          .map((m: { program: { schoolName: string; programName: string; programType?: string; campus?: string; description?: string } }) => ({
-            schoolName: m.program.schoolName,
-            programName: m.program.programName,
-            programType: m.program.programType,
-            campus: m.program.campus,
-            description: m.program.description,
-          }));
-        return {
-          careerName: r.career.name,
-          careerCategory: r.career.category,
-          matchPercentage: r.matchPercentage,
-          qualifyingPrograms: qualifying.length > 0 ? qualifying : programs.slice(0, 5),
-        };
-      }),
-      allDbPrograms
+      dbProgramRows,
+      notEligibleCareers,
+      { userId, enginePayload }
     );
     aiAdvice = aiResult.advice;
     aiRecommendedPrograms = aiResult.recommendedPrograms;
@@ -289,14 +388,12 @@ router.post("/recommend", requireAuth, async (req, res): Promise<void> => {
     }
   }
 
-  const userId = (req.session as { userId?: number })?.userId ?? null;
-
   fileLogger.logPrediction({
     userId,
     inputs: {
       interests: parsed.data.interests,
       strengths: parsed.data.strengths,
-      subjects: parsed.data.subjects ?? [],
+      subjects: aLevelSubjects,
       oLevelSubjects,
       personalityType: parsed.data.personalityType,
       cutOffPoints: parsed.data.cutOffPoints,
@@ -316,14 +413,22 @@ router.post("/recommend", requireAuth, async (req, res): Promise<void> => {
         })),
     })),
     aiAdvice: aiAdvice || undefined,
-    modelVersion: "rule-based-v1",
+    modelVersion: `programs-rule-based + advice-${activeAiMode}`,
+    programMatchingEngine: "rule-based-db",
+    aiAdviceEngine: aiAdvice ? activeAiMode : "none",
   });
 
-  res.json(GetRecommendationsResponse.parse({
-    recommendations: result,
-    aiAdvice: aiAdvice || undefined,
-    aiRecommendedPrograms: aiRecommendedPrograms.length > 0 ? aiRecommendedPrograms : undefined,
-  }));
+  res.json(
+    GetRecommendationsResponse.parse({
+      recommendations: result,
+      aiAdvice: aiAdvice || undefined,
+      aiRecommendedPrograms: aiRecommendedPrograms.length > 0 ? aiRecommendedPrograms : undefined,
+      recommendationStatus: enginePayload.status,
+      recommendationReason: enginePayload.reason ?? undefined,
+      eligiblePrograms: enginePayload.allEligiblePrograms,
+      explorePrograms,
+    })
+  );
 });
 
 function hasOLevelSubject(required: string, studentSubjects: string[]): boolean {

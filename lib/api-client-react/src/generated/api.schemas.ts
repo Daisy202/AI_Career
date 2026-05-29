@@ -204,12 +204,48 @@ export interface CareerRecommendation {
   matchedPrograms: ProgramMatch[];
 }
 
+export type EligibleProgramSummaryPathway =
+  (typeof EligibleProgramSummaryPathway)[keyof typeof EligibleProgramSummaryPathway];
+
+export const EligibleProgramSummaryPathway = {
+  eligible: "eligible",
+  alternative: "alternative",
+  near_match: "near_match",
+} as const;
+
+export interface EligibleProgramSummary {
+  program: string;
+  school: string;
+  /** @nullable */
+  career?: string | null;
+  programType: string;
+  /** @nullable */
+  minimumPoints?: number | null;
+  requiredSubjects: string[];
+  missingSubjects: string[];
+  pathway?: EligibleProgramSummaryPathway;
+}
+
+export type RecommendationsResponseRecommendationStatus =
+  (typeof RecommendationsResponseRecommendationStatus)[keyof typeof RecommendationsResponseRecommendationStatus];
+
+export const RecommendationsResponseRecommendationStatus = {
+  matched: "matched",
+  no_direct_degree_match: "no_direct_degree_match",
+} as const;
+
 export interface RecommendationsResponse {
   recommendations: CareerRecommendation[];
   /** AI-generated personalized advice based on profile and DB programs */
   aiAdvice?: string;
   /** Programs AI recommended that exist in our database (cross-referenced) */
   aiRecommendedPrograms?: AiRecommendedProgram[];
+  recommendationStatus?: RecommendationsResponseRecommendationStatus;
+  recommendationReason?: string;
+  /** Subject-qualified programs from the rules engine */
+  eligiblePrograms?: EligibleProgramSummary[];
+  /** Eligible, alternative, and near-match programs for explore UI */
+  explorePrograms?: EligibleProgramSummary[];
 }
 
 export interface CreateProgramRequest {

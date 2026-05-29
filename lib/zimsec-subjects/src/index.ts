@@ -163,6 +163,10 @@ export const COMMON_A_LEVEL_COMBINATIONS = [
   },
 ];
 
+function aliasKey(s: string): string {
+  return s.toLowerCase().replace(/\s+/g, "").trim();
+}
+
 /** Match student subject to program requirement (Zimbabwe naming variants). */
 export function subjectAlias(a: string, b: string): boolean {
   const normalize = (s: string) => s.toLowerCase().replace(/\s+/g, " ").trim();
@@ -172,9 +176,13 @@ export function subjectAlias(a: string, b: string): boolean {
   if (aNorm.includes(bNorm) || bNorm.includes(aNorm)) return true;
 
   const aliases: Record<string, string[]> = {
-    maths: ["mathematics", "math", "pure mathematics", "additional mathematics"],
-    mathematics: ["maths", "math", "pure mathematics", "additional mathematics"],
+    maths: ["mathematics", "math"],
+    mathematics: ["maths", "math", "pure mathematics", "additional mathematics", "statistics", "mechanical mathematics"],
     math: ["maths", "mathematics"],
+    "pure mathematics": ["mathematics", "maths", "math"],
+    "additional mathematics": ["mathematics", "maths", "math"],
+    statistics: ["mathematics", "maths", "math"],
+    "mechanical mathematics": ["mathematics", "maths", "math"],
     bio: ["biology"],
     biology: ["bio"],
     chem: ["chemistry"],
@@ -200,10 +208,12 @@ export function subjectAlias(a: string, b: string): boolean {
     ndebele: ["literature in ndebele"],
   };
 
-  const aKey = aNorm.replace(/\s+/g, "");
-  const bKey = bNorm.replace(/\s+/g, "");
+  const aKey = aliasKey(aNorm);
+  const bKey = aliasKey(bNorm);
+  const aList = aliases[aKey] ?? aliases[aNorm] ?? [];
+  const bList = aliases[bKey] ?? aliases[bNorm] ?? [];
   return (
-    (aliases[aKey] || []).some(x => x.replace(/\s+/g, "") === bKey) ||
-    (aliases[bKey] || []).some(x => x.replace(/\s+/g, "") === aKey)
+    aList.some(x => aliasKey(x) === bKey) ||
+    bList.some(x => aliasKey(x) === aKey)
   );
 }

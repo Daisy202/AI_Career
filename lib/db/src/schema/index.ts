@@ -5,3 +5,4 @@ export * from "./universities";
 export * from "./chat";
 export * from "./studentProfile";
 export * from "./apiLogs";
+export * from "./systemSettings";

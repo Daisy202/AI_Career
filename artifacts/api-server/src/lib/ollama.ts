@@ -1,3 +1,5 @@
+import { completeChatMessages } from "./aiProvider.js";
+
 interface ChatMessage {
   role: "user" | "assistant";
   content: string;
@@ -6,6 +8,7 @@ interface ChatMessage {
 interface ChatRequest {
   message: string;
   history?: ChatMessage[];
+  userId?: number | null;
   dbContext?: string;
   studentProfile?: {
     interests?: string[];
@@ -24,7 +27,7 @@ interface ChatResult {
   suggestions: string[];
 }
 
-const SYSTEM_PROMPT = `You are CareerGuide AI — ONLY for Zimbabwe career and university guidance. You are NOT a general chatbot, therapist, or translator.
+export const CAREER_GUIDE_SYSTEM_PROMPT = `You are CareerGuide AI — ONLY for Zimbabwe career and university guidance. You are NOT a general chatbot, therapist, or translator.
 
 IN SCOPE (answer these):
 - A-Level / O-Level subjects for careers and degrees in Zimbabwe
@@ -36,27 +39,49 @@ OUT OF SCOPE — reply ONLY: "I only help with careers and study in Zimbabwe. As
 - Describing yourself as a "large language model" or listing translation/poems/code features
 - Therapy, crisis counselling, suicide hotlines (not your role)
 
-ZIMSEC: 1–5 points per subject; 1–15 total (lower = better). Never invent 18, 38, or 150.
+ZIMSEC: 0–5 points per subject; 5 is best; higher total (up to 15) is better. Never invent invalid totals.
 
 CONVERSATION RULES:
 1. Follow the student's topic from the chat (if they asked about medicine, stay on medicine — never switch to agriculture unless they ask).
 2. O-Level only → explain they need A-Level for MBChB; mention nursing/diploma options from the database.
 3. Max 6 lines or short bullets. Use **bold** for program names.
-4. Use VERIFIED DATABASE PROGRAMS exactly; do not make up universities or subjects.`;
+4. Use VERIFIED DATABASE PROGRAMS exactly; do not make up universities or subjects.
+5. NEVER include calendar dates, month names with days, "as of", "today", "currently", or "at present".
+6. Rank by required A-Level/O-Level subject fit FIRST; use interests/strengths only to break ties among subject-qualified programs.
+
+CRITICAL DATA RULE:
+- You do NOT have direct database access.
+- You will receive a JSON block labeled AI_GROUNDED_CONTEXT_JSON from the backend.
+- Use ONLY programs and facts contained in that JSON. Do NOT search, infer, or invent programs/schools/requirements/cut-offs.`;
+
+const RESPONSE_STYLE_GUARD = `OUTPUT STYLE (STRICT):
+- Maximum 5 sentences.
+- 1) Eligibility summary
+- 2) Best matching programs
+- 3) Missing requirements/limitations (if relevant)
+- 4) Alternative pathways (if relevant)
+- 5) Final practical guidance sentence
+- Use Zimbabwean terminology and keep it factual.
+- Never mention internal architecture, backend processing, JSON payloads, or database-access limitations to the student.`;
 
 export async function chatWithOllama(request: ChatRequest): Promise<ChatResult> {
-  const baseUrl = process.env.OLLAMA_BASE_URL || "http://localhost:11434";
-  const model = process.env.OLLAMA_MODEL || "gemma3:1b";
-
   const profileContext = request.studentProfile
-    ? `\n\nStudent Profile:\n- Interests: ${request.studentProfile.interests?.join(", ") || "Not specified"}\n- Strengths: ${request.studentProfile.strengths?.join(", ") || "Not specified"}\n- O-Level Subjects: ${request.studentProfile.oLevelSubjects?.join(", ") || "None listed"}\n- A-Level Subjects: ${request.studentProfile.subjects?.join(", ") || "None yet"}\n- Personality: ${request.studentProfile.personalityType || "Not specified"}${request.studentProfile.cutOffPoints != null ? `\n- ZIMSEC cut-off points: ${request.studentProfile.cutOffPoints} (1–15 scale, lower is better)` : ""}${request.conversationTopic ? `\n- Active topic from chat: ${request.conversationTopic} (do not change to other careers)` : ""}`
+    ? `\n\nStudent Profile:\n- Interests: ${request.studentProfile.interests?.join(", ") || "Not specified"}\n- Strengths: ${request.studentProfile.strengths?.join(", ") || "Not specified"}\n- O-Level Subjects: ${request.studentProfile.oLevelSubjects?.join(", ") || "None listed"}\n- A-Level Subjects: ${request.studentProfile.subjects?.join(", ") || "None yet"}\n- Personality: ${request.studentProfile.personalityType || "Not specified"}${request.studentProfile.cutOffPoints != null ? `\n- ZIMSEC total points: ${request.studentProfile.cutOffPoints} (0–15 scale, higher is better)` : ""}${request.conversationTopic ? `\n- Active topic from chat: ${request.conversationTopic} (do not change to other careers)` : ""}`
     : "";
 
-  const messages: Array<{ role: string; content: string }> = [
-    { role: "system", content: SYSTEM_PROMPT + profileContext + (request.dbContext ?? "") },
+  const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
+    {
+      role: "system",
+      content:
+        CAREER_GUIDE_SYSTEM_PROMPT +
+        "\n\n" +
+        RESPONSE_STYLE_GUARD +
+        profileContext +
+        (request.dbContext ?? ""),
+    },
   ];
 
-  if (request.history && request.history.length > 0) {
+  if (request.history?.length) {
     for (const msg of request.history) {
       messages.push({ role: msg.role, content: msg.content });
     }
@@ -65,38 +90,17 @@ export async function chatWithOllama(request: ChatRequest): Promise<ChatResult> 
   messages.push({ role: "user", content: request.message });
 
   try {
-    const response = await fetch(`${baseUrl}/api/chat`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model,
-        messages,
-        stream: false,
-        options: {
-          temperature: 0.25,
-          num_predict: 160,
-        },
-      }),
+    const text = await completeChatMessages(messages, {
+      temperature: 0.2,
+      maxTokens: 180,
+      context: { source: "chat", userId: request.userId ?? null },
     });
-
-    if (!response.ok) {
-      const errText = await response.text();
-      console.error("Ollama API error:", errText);
-      throw new Error(`Ollama API error: ${response.status}`);
-    }
-
-    const data = (await response.json()) as {
-      message?: { content?: string };
-    };
-
-    const text = data.message?.content || "I'm sorry, I couldn't generate a response. Please try again.";
-
-    const suggestions = generateSuggestions(request.message, text);
-
-    return { message: text, suggestions };
+    return { message: text, suggestions: generateSuggestions(request.message, text) };
   } catch (error) {
-    console.error("Error calling Ollama:", error);
-    throw new Error("Failed to get AI response. Make sure Ollama is running (http://localhost:11434) and you have pulled a model (e.g. ollama pull gemma3:1b)");
+    console.error("Error calling AI provider:", error);
+    throw new Error(
+      "Failed to get AI response. Check Admin → AI Settings (offline: Ollama running; online: API key in .env)."
+    );
   }
 }
 

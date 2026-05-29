@@ -146,6 +146,7 @@ export default function AssessmentPage() {
   const clearRecommendations = useCareerStore(s => s.clearRecommendations);
 
   const onSubmit = async (data: FormValues) => {
+    clearRecommendations();
     const hobbiesArray = data.hobbies ? data.hobbies.split(',').map(s => s.trim()).filter(Boolean) : [];
     const profileData = {
       interests: data.interests,
@@ -158,20 +159,40 @@ export default function AssessmentPage() {
       oLevelPasses: data.oLevelPasses,
       aLevelPasses: data.aLevelPasses
     };
-    clearRecommendations(); // Invalidate cache so fresh results are fetched
-    setProfile(profileData);
 
     if (user) {
       try {
-        await fetch("/api/profile", {
+        const res = await fetch("/api/profile", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
           body: JSON.stringify(profileData),
         });
+        if (res.ok) {
+          const saved = await res.json();
+          if (saved?.subjects) {
+            setProfile({
+              interests: saved.interests ?? profileData.interests,
+              strengths: saved.strengths ?? profileData.strengths,
+              subjects: saved.subjects,
+              oLevelSubjects: saved.oLevelSubjects ?? [],
+              personalityType: saved.personalityType ?? profileData.personalityType,
+              hobbies: saved.hobbies ?? profileData.hobbies,
+              cutOffPoints: saved.cutOffPoints ?? profileData.cutOffPoints,
+              oLevelPasses: saved.oLevelPasses ?? profileData.oLevelPasses,
+              aLevelPasses: saved.aLevelPasses ?? profileData.aLevelPasses,
+            });
+          } else {
+            setProfile(profileData);
+          }
+        } else {
+          setProfile(profileData);
+        }
       } catch {
-        // ignore
+        setProfile(profileData);
       }
+    } else {
+      setProfile(profileData);
     }
 
     setLocation("/recommendations");
@@ -410,7 +431,7 @@ export default function AssessmentPage() {
                     {renderGroupedSubjectGrid("subjects", A_LEVEL_SUBJECT_GROUPS, errors.subjects)}
                     <div className="space-y-2 pt-4 border-t border-border">
                       <Label className="text-base font-semibold">A-Level Cut-off Points (Optional)</Label>
-                      <p className="text-sm text-muted-foreground">Enter your total ZIMSEC cut-off (1–15; each subject is 1–5 points, lower total is better). Used for chance analysis only.</p>
+                      <p className="text-sm text-muted-foreground">Enter your total ZIMSEC points (0–15; each subject is 0–5 points, higher total is better). Used for chance analysis only.</p>
                       <Controller
                         name="cutOffPoints"
                         control={control}

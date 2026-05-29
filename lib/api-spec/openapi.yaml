@@ -584,6 +584,34 @@ components:
       required: [programName, schoolName]
       description: Program AI recommended, verified against DB
 
+    EligibleProgramSummary:
+      type: object
+      properties:
+        program:
+          type: string
+        school:
+          type: string
+        career:
+          type: string
+          nullable: true
+        programType:
+          type: string
+        minimumPoints:
+          type: integer
+          nullable: true
+        requiredSubjects:
+          type: array
+          items:
+            type: string
+        missingSubjects:
+          type: array
+          items:
+            type: string
+        pathway:
+          type: string
+          enum: [eligible, alternative, near_match]
+      required: [program, school, programType, requiredSubjects, missingSubjects]
+
     RecommendationsResponse:
       type: object
       properties:
@@ -599,6 +627,21 @@ components:
           items:
             $ref: "#/components/schemas/AiRecommendedProgram"
           description: Programs AI recommended that exist in our database (cross-referenced)
+        recommendationStatus:
+          type: string
+          enum: [matched, no_direct_degree_match]
+        recommendationReason:
+          type: string
+        eligiblePrograms:
+          type: array
+          items:
+            $ref: "#/components/schemas/EligibleProgramSummary"
+          description: Subject-qualified programs from the rules engine
+        explorePrograms:
+          type: array
+          items:
+            $ref: "#/components/schemas/EligibleProgramSummary"
+          description: Eligible, alternative pathway, and near-match programs for explore UI
       required: [recommendations]
 
     CareerRecommendation:

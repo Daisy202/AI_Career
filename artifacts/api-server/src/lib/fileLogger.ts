@@ -27,7 +27,9 @@ export type LogType =
   | "api"
   | "admin"
   | "performance"
-  | "system";
+  | "system"
+  | "ai_inference"
+  | "chat";
 
 export type Severity = "INFO" | "WARNING" | "ERROR" | "CRITICAL";
 
@@ -100,6 +102,8 @@ export const fileLogger = {
     predictions: Array<{ career: string; category: string; matchPercentage: number; matchReasons: string[]; qualifyingPrograms: Array<{ program: string; school: string }> }>;
     aiAdvice?: string;
     modelVersion?: string;
+    programMatchingEngine?: string;
+    aiAdviceEngine?: string;
   }): void {
     writeEntry({
       timestamp: new Date().toISOString(),
@@ -112,6 +116,8 @@ export const fileLogger = {
         predictions: params.predictions,
         aiAdvice: params.aiAdvice ?? null,
         modelVersion: params.modelVersion ?? "rule-based-v1",
+        programMatchingEngine: params.programMatchingEngine ?? "rule-based-db",
+        aiAdviceEngine: params.aiAdviceEngine ?? "none",
       },
     });
   },
@@ -170,6 +176,64 @@ export const fileLogger = {
       user_id: params.userId ?? null,
       message: params.action,
       details: { success: params.success, ...params.details },
+    });
+  },
+
+  /** LLM request/response (chat, recommendation advice) */
+  logAiInference(params: {
+    userId?: number | null;
+    source: string;
+    aiMode: "offline" | "online";
+    url: string;
+    model: string;
+    status: number;
+    latencyMs: number;
+    request: unknown;
+    response?: unknown;
+    error?: string;
+  }): void {
+    writeEntry({
+      timestamp: new Date().toISOString(),
+      log_type: "ai_inference",
+      severity: params.status >= 400 || params.error ? "WARNING" : "INFO",
+      user_id: params.userId ?? null,
+      message: `AI ${params.source} (${params.aiMode}) → ${params.url}`,
+      details: {
+        source: params.source,
+        aiMode: params.aiMode,
+        url: params.url,
+        model: params.model,
+        status: params.status,
+        latencyMs: params.latencyMs,
+        request: params.request,
+        response: params.response ?? null,
+        error: params.error ?? null,
+      },
+    });
+  },
+
+  /** Chat turn: user message, handler path, and response preview (DB or LLM). */
+  logChat(params: {
+    userId?: number | null;
+    handler: "out_of_scope" | "canned" | "database" | "rule" | "llm" | "error";
+    message: string;
+    responsePreview: string;
+    latencyMs?: number;
+    details?: Record<string, unknown>;
+  }): void {
+    writeEntry({
+      timestamp: new Date().toISOString(),
+      log_type: "chat",
+      severity: "INFO",
+      user_id: params.userId ?? null,
+      message: `Chat (${params.handler})`,
+      details: {
+        handler: params.handler,
+        userMessage: params.message,
+        responsePreview: params.responsePreview.slice(0, 600),
+        latencyMs: params.latencyMs,
+        ...params.details,
+      },
     });
   },
 

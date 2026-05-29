@@ -221,6 +221,40 @@ export const GetRecommendationsResponse = zod.object({
     .describe(
       "Programs AI recommended that exist in our database (cross-referenced)",
     ),
+  recommendationStatus: zod
+    .enum(["matched", "no_direct_degree_match"])
+    .optional()
+    .describe("Backend engine match status"),
+  recommendationReason: zod.string().optional(),
+  eligiblePrograms: zod
+    .array(
+      zod.object({
+        program: zod.string(),
+        school: zod.string(),
+        career: zod.string().nullish(),
+        programType: zod.string(),
+        minimumPoints: zod.number().nullish(),
+        requiredSubjects: zod.array(zod.string()),
+        missingSubjects: zod.array(zod.string()),
+      })
+    )
+    .optional()
+    .describe("All subject-qualified programs from the rules engine"),
+  explorePrograms: zod
+    .array(
+      zod.object({
+        program: zod.string(),
+        school: zod.string(),
+        career: zod.string().nullish(),
+        programType: zod.string(),
+        minimumPoints: zod.number().nullish(),
+        requiredSubjects: zod.array(zod.string()),
+        missingSubjects: zod.array(zod.string()),
+        pathway: zod.enum(["eligible", "alternative", "near_match"]),
+      })
+    )
+    .optional()
+    .describe("Eligible, alternative, and near-match programs for explore UI"),
 });
 
 /**

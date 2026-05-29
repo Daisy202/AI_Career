@@ -7,7 +7,8 @@ config({ path: path.resolve(__dirname, "..", "..", "..", ".env") });
 
 import app from "./app";
 import { fileLogger } from "./lib/fileLogger.js";
-import { seedUniversitiesIfEmpty } from "./lib/universities.js";
+import { seedUniversitiesIfEmpty, syncUniversityAcronyms } from "./lib/universities.js";
+import { ensureSystemSettingsTable } from "./lib/systemSettings.js";
 
 process.on("uncaughtException", (err) => {
   console.error("Uncaught exception:", err);
@@ -39,7 +40,9 @@ if (Number.isNaN(port) || port <= 0) {
 
 const server = app.listen(port, async () => {
   try {
+    await ensureSystemSettingsTable();
     await seedUniversitiesIfEmpty();
+    await syncUniversityAcronyms();
   } catch (err) {
     console.warn("University seed skipped:", err);
   }

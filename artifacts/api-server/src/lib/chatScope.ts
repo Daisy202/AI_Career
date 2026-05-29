@@ -212,9 +212,9 @@ export function classifyUserMessage(message: string): UserMessageKind {
 
   // Off-topic detection
   const offTopic =
-    /\b(weather|recipe|football|movie|joke|bitcoin|politics|president|dating|relationship advice)\b/i.test(lower);
+    /\b(weather|recipe|football|soccer|movie|netflix|joke|meme|bitcoin|crypto|forex|politics|president|dating|relationship advice|translate this|write a poem|homework help)\b/i.test(lower);
   const careerHint =
-    /\b(career|study|subject|university|school|zimsec|cut-?off|a-?level|o-?level|degree|diploma|job|work|salary|pay|medicine|engineer|course|program)\b/i.test(lower);
+    /\b(career|careers|study|stud(y|ies)|subject|subjects|university|universities|college|polytechnic|school|zimsec|cut-?off|a-?level|o-?level|degree|diploma|certificate|hexco|job|jobs|work|salary|pay|marketable|demand|medicine|engineer|law|account|commerce|ict|software|course|program|programme|requirement|points?|apply|application|admission|intake|recommend|compare|form\s*[456]|after\s+form|without\s+a-?level|interest|mathematics|biology|chemistry|physics)\b/i.test(lower);
 
   if (offTopic && !careerHint) return "off_topic";
 

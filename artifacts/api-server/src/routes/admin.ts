@@ -4,8 +4,51 @@ import { desc, sql, gte } from "drizzle-orm";
 import fs from "fs";
 import { requireAdmin } from "../lib/auth.js";
 import { fileLogger, parseLogFile } from "../lib/fileLogger.js";
+import {
+  getAiSettingsForAdmin,
+  setAiMode,
+  type AiMode,
+} from "../lib/systemSettings.js";
 
 const router: IRouter = Router();
+
+router.get("/admin/settings", requireAdmin, async (_req, res): Promise<void> => {
+  const settings = await getAiSettingsForAdmin();
+  res.json(settings);
+});
+
+router.put("/admin/settings", requireAdmin, async (req, res): Promise<void> => {
+  const aiMode = req.body?.aiMode as string | undefined;
+  if (aiMode !== "offline" && aiMode !== "online") {
+    res.status(400).json({ error: 'aiMode must be "offline" or "online"' });
+    return;
+  }
+
+  const userId = (req.session as { userId?: number })?.userId;
+  if (!userId) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+
+  const settings = await getAiSettingsForAdmin();
+  if (aiMode === "online" && !settings.onlineConfigured) {
+    res.status(400).json({
+      error:
+        "Online mode requires ONLINE_API_KEY (or online_apikey) in the server .env file.",
+    });
+    return;
+  }
+
+  await setAiMode(aiMode as AiMode, userId);
+  fileLogger.logAdmin({
+    userId,
+    action: "AI mode updated",
+    details: { aiMode },
+  });
+
+  const updated = await getAiSettingsForAdmin();
+  res.json(updated);
+});
 
 router.get("/admin/logs", requireAdmin, async (req, res): Promise<void> => {
   const limit = Math.min(parseInt(req.query.limit as string) || 100, 500);

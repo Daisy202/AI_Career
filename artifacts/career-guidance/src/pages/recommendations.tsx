@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { Briefcase, ArrowRight, BrainCircuit, AlertCircle, RefreshCw, GraduationCap } from "lucide-react";
 import { Button, Card, Badge, Progress, Skeleton } from "@/components/ui-elements";
 import { AiText } from "@/components/AiText";
+import { ExploreProgramsList } from "@/components/ExploreProgramsList";
 import { useCareerStore } from "@/store/use-career-store";
 import { useGetRecommendations } from "@workspace/api-client-react";
 
@@ -21,18 +22,33 @@ export default function RecommendationsPage() {
   const aiAdvice = displayData?.aiAdvice;
   const aiRecommendedPrograms = displayData?.aiRecommendedPrograms ?? [];
   const aiRecommendedSet = new Set(aiRecommendedPrograms.map((p: { programName: string; schoolName: string }) => `${p.programName}|${p.schoolName}`));
+  const explorePrograms =
+    displayData?.explorePrograms ??
+    (displayData?.eligiblePrograms ?? []).map((p) => ({
+      ...p,
+      pathway: "eligible" as const,
+    }));
+  const recommendationStatus = displayData?.recommendationStatus;
 
-  // Only fetch when we have profile but no cached recommendations
+  const profileKey = profile
+    ? JSON.stringify({
+        subjects: profile.subjects,
+        oLevelSubjects: profile.oLevelSubjects,
+        cutOffPoints: profile.cutOffPoints,
+        interests: profile.interests,
+      })
+    : "";
+
+  // Refetch when profile subjects/points change (assessment replaces lists entirely).
   useEffect(() => {
-    if (profile && !cached && !isPending) {
-      mutate(
-        { data: profile },
-        {
-          onSuccess: (data) => setRecommendations(data),
-        }
-      );
-    }
-  }, [profile, cached, isPending, mutate, setRecommendations]);
+    if (!profileKey) return;
+    mutate(
+      { data: profile! },
+      {
+        onSuccess: (data) => setRecommendations(data),
+      }
+    );
+  }, [profileKey, profile, mutate, setRecommendations]);
 
   if (!profile) {
     return (
@@ -76,7 +92,7 @@ export default function RecommendationsPage() {
             </p>
             {profile?.cutOffPoints != null && (
               <p className="text-base font-semibold text-primary mt-2">
-                Your total cut-off: <strong>{profile.cutOffPoints}</strong> (1–15; each A-Level subject is 1–5 pts, lower total is better) — chance analysis only
+                Your total points: <strong>{profile.cutOffPoints}</strong> (0–15; each A-Level subject is 0–5 pts, higher total is better) — chance analysis only
               </p>
             )}
           </div>
@@ -136,7 +152,7 @@ export default function RecommendationsPage() {
             <AiText text={aiAdvice} className="text-foreground leading-relaxed" as="p" />
             {aiRecommendedPrograms.length > 0 && (
               <p className="text-xs text-muted-foreground mt-3 pt-3 border-t border-primary/20">
-                AI recommended {aiRecommendedPrograms.length} program{aiRecommendedPrograms.length !== 1 ? "s" : ""} from our database — shown first below.
+                AI recommended {aiRecommendedPrograms.length} program{aiRecommendedPrograms.length !== 1 ? "s" : ""} from our database — highlighted in the career cards below.
               </p>
             )}
           </Card>
@@ -296,6 +312,10 @@ export default function RecommendationsPage() {
               </motion.div>
             ))}
           </motion.div>
+        )}
+
+        {!isPending && explorePrograms.length > 0 && (
+          <ExploreProgramsList programs={explorePrograms} status={recommendationStatus} />
         )}
       </div>
     </div>

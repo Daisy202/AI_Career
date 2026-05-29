@@ -68,16 +68,19 @@ function toJsonArray(value: string): string[] {
   }
 }
 
+const ACRONYM_STOP = new Set(["of", "the", "and", "&", "for", "in", "at", "a", "an"]);
+
 function normalizeAcronyms(name: string): string[] {
   const acronyms: string[] = [];
   const paren = name.match(/\(([^)]+)\)/);
   if (paren?.[1]) acronyms.push(paren[1].trim());
-  const letters = name
+  const words = name
+    .replace(/\([^)]*\)/g, "")
     .split(/\s+/)
-    .filter(w => /^[A-Z]/.test(w))
     .map(w => w.replace(/[^A-Za-z]/g, ""))
-    .join("");
-  if (letters.length >= 2 && letters.length <= 8) acronyms.push(letters);
+    .filter(w => w.length > 0 && !ACRONYM_STOP.has(w.toLowerCase()));
+  const letters = words.map(w => w[0]!.toUpperCase()).join("");
+  if (letters.length >= 2 && letters.length <= 12) acronyms.push(letters);
   return [...new Set(acronyms)];
 }
 

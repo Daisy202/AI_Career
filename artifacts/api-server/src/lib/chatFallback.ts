@@ -107,7 +107,7 @@ function formatProgramLine(p: DbProgramRow): string {
       : "see faculty requirements";
   const pts =
     p.minimumPoints != null
-      ? `total cut-off ≤ **${p.minimumPoints}** (1–15 scale, lower is better)`
+      ? `minimum total **${p.minimumPoints}** points (0–15 scale, higher is better)`
       : "cut-off not listed in our database";
   return `• **${p.programName}** at ${p.schoolName} — A-Level: ${subs}; ${pts}`;
 }
